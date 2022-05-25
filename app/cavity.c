@@ -5,12 +5,12 @@ const char *const help = "Solves a 2D lid-driven cavity flow.\n\n";
 DM da, dau, dav, dap, stag;
 DMDALocalInfo info;
 Vec u, v, p, UV, u_star, v_star, u_tilde, v_tilde, p_prime, UV_star;
-Vec u_prev, v_prev, p_prev, UV_prev;
 Vec Nu, Nv, Nu_prev, Nv_prev;
 
 KSP kspu, kspv, kspp;
 
 PetscReal rho = 1.0, mu = 1.0, dt = 0.01;
+PetscInt nt = 1000;
 
 PetscErrorCode CreateDM(void);
 PetscErrorCode CreateVec(void);
@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
     PetscOptionsReal("-rho", "Density", NULL, rho, &rho, NULL);
     PetscOptionsReal("-mu", "Viscosity", NULL, mu, &mu, NULL);
     PetscOptionsReal("-dt", "Time step size", NULL, dt, &dt, NULL);
+    PetscOptionsInt("-nt", "Number of time steps", NULL, nt, &nt, NULL);
     PetscOptionsEnd();
 
     /* Create DMs. */
@@ -44,7 +45,7 @@ int main(int argc, char *argv[]) {
     /* Create solvers. */
     PetscCall(CreateSolver());
 
-    for (PetscInt t = 0; t < 5; t++) {
+    for (PetscInt t = 0; t < nt; t++) {
         /* Calculate convection term. */
         PetscCall(CalculateConvection());
         /* Calculate intermediate velocity. */
@@ -53,6 +54,25 @@ int main(int argc, char *argv[]) {
         PetscCall(CalculatePressureCorrection());
         /* Update to next time step. */
         PetscCall(Update());
+    }
+
+    FILE *fp;
+
+    fp = fopen("u.txt", "w");
+    if (fp) {
+        const PetscReal **arru;
+        PetscInt i, j;
+
+        PetscCall(DMDAVecGetArrayRead(da, u, &arru));
+        for (i = 0; i < info.mx; i++) {
+            for (j = 0; j < info.my; j++) {
+                PetscFPrintf(PETSC_COMM_WORLD, fp, "%f ", arru[j][i]);
+            }
+            PetscFPrintf(PETSC_COMM_WORLD, fp, "\n");
+        }
+        PetscCall(DMDAVecRestoreArrayRead(da, u, &arru));
+
+        fclose(fp);
     }
 
     /* Destroy. */
@@ -122,10 +142,6 @@ PetscErrorCode CreateVec(void) {
     PetscCall(DMCreateLocalVector(da, &v_tilde));
     PetscCall(DMCreateLocalVector(da, &p_prime));
     PetscCall(DMCreateLocalVector(stag, &UV_star));
-    PetscCall(DMCreateLocalVector(da, &u_prev));
-    PetscCall(DMCreateLocalVector(da, &v_prev));
-    PetscCall(DMCreateLocalVector(da, &p_prev));
-    PetscCall(DMCreateLocalVector(stag, &UV_prev));
 
     PetscCall(DMCreateLocalVector(da, &Nu));
     PetscCall(DMCreateLocalVector(da, &Nv));
@@ -160,7 +176,7 @@ PetscErrorCode CreateSolver(void) {
 PetscErrorCode CalculateConvection(void) {
     PetscReal hx, hy;
     PetscReal **arrNu, **arrNv;
-    const PetscReal **arru, **arrv, ***arrfcvel;
+    const PetscReal **arru, **arrv, ***arrUV;
     PetscInt iU, iV;
     PetscReal up, uw, ue, us, un, vp, vw, ve, vs, vn;
     PetscInt i, j;
@@ -172,7 +188,7 @@ PetscErrorCode CalculateConvection(void) {
     PetscCall(DMDAVecGetArray(da, Nv, &arrNv));
     PetscCall(DMDAVecGetArrayRead(da, u, &arru));
     PetscCall(DMDAVecGetArrayRead(da, v, &arrv));
-    PetscCall(DMStagVecGetArrayRead(stag, UV, &arrfcvel));
+    PetscCall(DMStagVecGetArrayRead(stag, UV, &arrUV));
 
     PetscCall(DMStagGetLocationSlot(stag, DMSTAG_LEFT, 0, &iU));
     PetscCall(DMStagGetLocationSlot(stag, DMSTAG_DOWN, 0, &iV));
@@ -214,17 +230,17 @@ PetscErrorCode CalculateConvection(void) {
                 vn = arrv[j+1][i];
             }
 
-            arrNu[j][i] = (arrfcvel[j][i+1][iU] * (up + ue) / 2 - arrfcvel[j][i][iU] * (uw + up) / 2) / hx
-                          + (arrfcvel[j+1][i][iV] * (up + un) / 2 - arrfcvel[j][i][iV] * (us + up) / 2) / hy;
-            arrNv[j][i] = (arrfcvel[j][i+1][iU] * (vp + ve) / 2 - arrfcvel[j][i][iU] * (vw + vp) / 2) / hx
-                          + (arrfcvel[j+1][i][iV] * (vp + vn) / 2 - arrfcvel[j][i][iV] * (vs + vp) / 2) / hy;
+            arrNu[j][i] = (arrUV[j][i+1][iU] * (up + ue) / 2.0 - arrUV[j][i][iU] * (uw + up) / 2.0) / hx
+                          + (arrUV[j+1][i][iV] * (up + un) / 2.0 - arrUV[j][i][iV] * (us + up) / 2.0) / hy;
+            arrNv[j][i] = (arrUV[j][i+1][iU] * (vp + ve) / 2.0 - arrUV[j][i][iU] * (vw + vp) / 2.0) / hx
+                          + (arrUV[j+1][i][iV] * (vp + vn) / 2.0 - arrUV[j][i][iV] * (vs + vp) / 2.0) / hy;
         }
 
     PetscCall(DMDAVecRestoreArray(da, Nu, &arrNu));
     PetscCall(DMDAVecRestoreArray(da, Nv, &arrNv));
     PetscCall(DMDAVecRestoreArrayRead(da, u, &arru));
     PetscCall(DMDAVecRestoreArrayRead(da, v, &arrv));
-    PetscCall(DMStagVecRestoreArrayRead(stag, UV, &arrfcvel));
+    PetscCall(DMStagVecRestoreArrayRead(stag, UV, &arrUV));
 
     return 0;
 }
@@ -312,7 +328,7 @@ PetscErrorCode CalculateIntermediateVelocity(void) {
                     arrUV_star[j][i][iU] = 0.0;
                 else
                     arrUV_star[j][i][iU] = (arru_tilde_rd[j][i-1] + arru_tilde_rd[j][i]) / 2.0
-                                           - (arrp[j][i] - arrp[j][i-1]) / hx;
+                                           - dt/rho * (arrp[j][i] - arrp[j][i-1]) / hx;
             }
             if (i < info.mx) {
                 /* Bottom wall. */
@@ -323,7 +339,7 @@ PetscErrorCode CalculateIntermediateVelocity(void) {
                     arrUV_star[j][i][iV] = 0.0;
                 else
                     arrUV_star[j][i][iV] = (arrv_tilde_rd[j-1][i] + arrv_tilde_rd[j][i]) / 2.0
-                                           - (arrp[j][i] - arrp[j-1][i]) / hy;
+                                           - dt/rho * (arrp[j][i] - arrp[j-1][i]) / hy;
             }
         }
 
@@ -348,7 +364,7 @@ PetscErrorCode CalculatePressureCorrection(void) {
 PetscErrorCode Update(void) {
     PetscReal hx, hy;
     PetscReal **arru, **arrv, **arrp, ***arrUV;
-    const PetscReal **arru_star, **arrv_star, **arrp_prev, **arrp_prime, ***arrUV_star;
+    const PetscReal **arru_star, **arrv_star, **arrp_prime, ***arrUV_star;
     PetscInt iU, iV;
     PetscReal ppp, ppw, ppe, pps, ppn, pw, pe, ps, pn;
     PetscInt i, j;
@@ -362,7 +378,6 @@ PetscErrorCode Update(void) {
     PetscCall(DMStagVecGetArray(stag, UV, &arrUV));
     PetscCall(DMDAVecGetArrayRead(da, u_star, &arru_star));
     PetscCall(DMDAVecGetArrayRead(da, v_star, &arrv_star));
-    PetscCall(DMDAVecGetArrayRead(da, p_prev, &arrp_prev));
     PetscCall(DMDAVecGetArrayRead(da, p_prime, &arrp_prime));
     PetscCall(DMStagVecGetArrayRead(stag, UV_star, &arrUV_star));
 
@@ -407,8 +422,8 @@ PetscErrorCode Update(void) {
 
             arru[j][i] = arru_star[j][i] - dt/rho * (ppe - ppw) / (2.0*hx);
             arrv[j][i] = arrv_star[j][i] - dt/rho * (ppn - pps) / (2.0*hy);
-            arrp[j][i] = arrp_prev[j][i] + arrp_prime[j][i]
-                         - mu*dt/(2.0*rho) * ((ppe - 2.0*ppp + ppw) / (hx*hx) + ((ppn - 2.0*ppp + pps) / (hy*hy)));
+            arrp[j][i] += arrp_prime[j][i]
+                          - mu*dt/(2.0*rho) * ((ppe - 2.0*ppp + ppw) / (hx*hx) + ((ppn - 2.0*ppp + pps) / (hy*hy)));
         }
 
     for (j = info.ys; j < info.ys + info.ym + 1; j++)
@@ -421,7 +436,7 @@ PetscErrorCode Update(void) {
                 else if (i == info.mx)
                     arrUV[j][i][iU] = 0.0;
                 else
-                    arrUV[j][i][iU] = arrUV_star[j][i][iU] - dt/rho * (arru_star[j][i] - arru_star[j][i-1]) / hx;
+                    arrUV[j][i][iU] = arrUV_star[j][i][iU] - dt/rho * (arrp_prime[j][i] - arrp_prime[j][i-1]) / hx;
             }
             if (i < info.mx) {
                 /* Bottom wall. */
@@ -431,7 +446,7 @@ PetscErrorCode Update(void) {
                 else if (j == info.my)
                     arrUV[j][i][iV] = 0.0;
                 else
-                    arrUV[j][i][iV] = arrUV_star[j][i][iV] - dt/rho * (arrv_star[j][i] - arrv_star[j-1][i]) / hy;
+                    arrUV[j][i][iV] = arrUV_star[j][i][iV] - dt/rho * (arrp_prime[j][i] - arrp_prime[j-1][i]) / hy;
             }
         }
 
@@ -441,14 +456,16 @@ PetscErrorCode Update(void) {
     PetscCall(DMStagVecRestoreArray(stag, UV, &arrUV));
     PetscCall(DMDAVecRestoreArrayRead(da, u_star, &arru_star));
     PetscCall(DMDAVecRestoreArrayRead(da, v_star, &arrv_star));
-    PetscCall(DMDAVecRestoreArrayRead(da, p_prev, &arrp_prev));
     PetscCall(DMDAVecRestoreArrayRead(da, p_prime, &arrp_prime));
     PetscCall(DMStagVecRestoreArrayRead(stag, UV_star, &arrUV_star));
 
-    PetscCall(VecCopy(u, u_prev));
-    PetscCall(VecCopy(v, v_prev));
-    PetscCall(VecCopy(p, p_prev));
-    PetscCall(VecCopy(UV, UV_prev));
+    DMLocalToLocalBegin(da, u, INSERT_VALUES, u);
+    DMLocalToLocalEnd(da, u, INSERT_VALUES, u);
+    DMLocalToLocalBegin(da, v, INSERT_VALUES, v);
+    DMLocalToLocalEnd(da, v, INSERT_VALUES, v);
+    DMLocalToLocalBegin(da, p, INSERT_VALUES, p);
+    DMLocalToLocalEnd(da, p, INSERT_VALUES, p);
+
     PetscCall(VecCopy(Nu, Nu_prev));
     PetscCall(VecCopy(Nv, Nv_prev));
 
@@ -594,7 +611,7 @@ PetscErrorCode ComputeRHSPprime(KSP ksp, Vec b, void *ctx) {
     PetscCall(DMStagVecGetArrayRead(stag, UV_star, &arrUV_star));
 
     PetscCall(DMStagGetLocationSlot(stag, DMSTAG_LEFT, 0, &iU));
-    PetscCall(DMStagGetLocationSlot(stag, DMSTAG_RIGHT, 0, &iV));
+    PetscCall(DMStagGetLocationSlot(stag, DMSTAG_DOWN, 0, &iV));
 
     for (j = info.ys; j < info.ys + info.ym; j++)
         for (i = info.xs; i < info.xs + info.xm; i++)
