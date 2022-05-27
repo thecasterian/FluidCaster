@@ -2,10 +2,13 @@
 #define SOLUTION_IMPL_H
 
 #include <petscvec.h>
-
-typedef struct _p_FcMesh *FcMesh;
+#include "../mesh.h"
+#include "objectimpl.h"
 
 struct _p_FcSolution {
+    /** Object. */
+    struct _p_FcObject obj;
+
     /** Mesh. */
     FcMesh mesh;
     /** X-velocity. */

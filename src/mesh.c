@@ -12,6 +12,7 @@ PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBounda
 
     /* Allocate memory for the mesh. */
     PetscCall(PetscNew(mesh));
+    FcObjectCreate(*mesh, comm, "FcMesh");
     (*mesh)->dim = 2;
     (*mesh)->da = NULL;
     (*mesh)->stag = NULL;

@@ -1,3 +1,8 @@
+/**
+ * @file solution.h
+ * @brief Problem solutions.
+ */
+
 #ifndef SOLUTION_H
 #define SOLUTION_H
 
@@ -8,8 +13,6 @@
  * @brief Solution of a fluid dynamics problem.
  */
 typedef struct _p_FcSolution *FcSolution;
-
-typedef struct _p_FcMesh *FcMesh;
 
 /**
  * @brief Creates a solution.
