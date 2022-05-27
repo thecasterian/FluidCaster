@@ -151,4 +151,15 @@ PetscErrorCode FcMeshGetInfo(FcMesh mesh, FcMeshInfo *info);
  */
 PetscErrorCode FcMeshGetOwnershipRanges(FcMesh mesh, const PetscInt *lx[], const PetscInt *ly[], const PetscInt *lz[]);
 
+/**
+ * @brief Gets the DMDA and DMStag used by a mesh.
+ *
+ * @param mesh Mesh.
+ * @param da DMDA.
+ * @param stag DMStag.
+ *
+ * @warning User must not modify nor destroy these DM objects.
+ */
+PetscErrorCode FcMeshGetDM(FcMesh mesh, DM *da, DM *stag);
+
 #endif

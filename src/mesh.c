@@ -1,13 +1,7 @@
 #include <petscdmda.h>
 #include <petscdmstag.h>
 #include "../inc/mesh.h"
-
-struct _p_FcMesh {
-    /** DMDA. */
-    DM da;
-    /** DMStag. */
-    DM stag;
-};
+#include "../inc/private/meshimpl.h"
 
 static PetscErrorCode ConvertBoundaryTypeFromFcMeshToDM(FcMeshBoundaryType fcb, DMBoundaryType *dmb);
 static PetscErrorCode ConvertBoundaryTypeFromDMToFcMesh(DMBoundaryType dmb, FcMeshBoundaryType *fcb);
@@ -18,6 +12,7 @@ PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBounda
 
     /* Allocate memory for the mesh. */
     PetscCall(PetscNew(mesh));
+    (*mesh)->dim = 2;
     (*mesh)->da = NULL;
     (*mesh)->stag = NULL;
 
@@ -85,6 +80,13 @@ PetscErrorCode FcMeshGetInfo(FcMesh mesh, FcMeshInfo *info) {
     info->xs = localinfo.xs;
     info->ys = localinfo.ys;
     info->zs = localinfo.zs;
+
+    return 0;
+}
+
+PetscErrorCode FcMeshGetDM(FcMesh mesh, DM *da, DM *stag) {
+    *da = mesh->da;
+    *stag = mesh->stag;
 
     return 0;
 }
