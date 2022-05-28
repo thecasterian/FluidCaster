@@ -12,7 +12,7 @@ PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBounda
 
     /* Allocate memory for the mesh. */
     PetscCall(PetscNew(mesh));
-    FcObjectCreate(*mesh, comm, "FcMesh");
+    FcObjectInit((FcObject)(*mesh), comm, "FcMesh");
     (*mesh)->dim = 2;
     (*mesh)->da = NULL;
     (*mesh)->stag = NULL;
@@ -51,8 +51,10 @@ PetscErrorCode FcMeshSetUp(FcMesh mesh) {
 
     /* Create DMStag. */
     if (dim == 2)
-        DMStagCreate2d(comm, bx, by, mx, my, px, py, 0, 1, 0, DMSTAG_STENCIL_STAR, 1, lx, ly, &mesh->stag);
-    // TODO: Handle 3d.
+        PetscCall(DMStagCreate2d(comm, bx, by, mx, my, px, py, 0, 1, 0, DMSTAG_STENCIL_STAR, 1, lx, ly, &mesh->stag));
+    else
+        PetscCall(DMStagCreate3d(comm, bx, by, bz, mx, my, mz, px, py, pz, 0, 0, 1, 0, DMSTAG_STENCIL_STAR, 1, lx, ly, lz, &mesh->stag));
+    PetscCall(DMSetUp(mesh->stag));
 
     return 0;
 }

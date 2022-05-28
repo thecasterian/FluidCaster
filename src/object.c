@@ -9,9 +9,10 @@ PetscErrorCode FcObjectGetComm(FcObject obj, MPI_Comm *comm) {
     return 0;
 }
 
-void FcObjectCreate_Private(FcObject obj, MPI_Comm comm, const char *class) {
+void FcObjectInit(FcObject obj, MPI_Comm comm, const char *class) {
     obj->comm = comm;
     obj->class = class;
-    obj->name = "";
+    obj->type = NULL;
+    obj->name = NULL;
     obj->magic = FC_OBJECT_MAGIC_NUMBER;
 }

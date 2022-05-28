@@ -6,7 +6,7 @@
 PetscErrorCode FcSolutionCreate(FcMesh mesh, FcSolution *sol) {
     /* Allocate memory for the solution. */
     PetscCall(PetscNew(sol));
-    FcObjectCreate(*sol, mesh->obj.comm, "FcSolution");
+    FcObjectInit((FcObject)(*sol), mesh->obj.comm, "FcSolution");
 
     /* Set the mesh. */
     (*sol)->mesh = mesh;

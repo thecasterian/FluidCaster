@@ -8,6 +8,7 @@
 
 #include <petscsystypes.h>
 #include <petscvec.h>
+#include "mesh.h"
 
 /**
  * @brief Solution of a fluid dynamics problem.

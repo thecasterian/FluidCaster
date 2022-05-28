@@ -11,6 +11,8 @@ struct _p_FcObject {
     MPI_Comm comm;
     /** Class name. */
     const char *class;
+    /** Type name (if the subclass exists). */
+    const char *type;
     /** Object name. */
     const char *name;
     /** Magic number. */
@@ -19,16 +21,6 @@ struct _p_FcObject {
 
 /** Magic number to verify the object validity. */
 #define FC_OBJECT_MAGIC_NUMBER 0xFC42
-
-/**
- * @brief Creates an object.
- *
- * @param h Any FluidCaster object.
- * @param comm MPI communicator.
- * @param[in] class Class name.
- */
-#define FcObjectCreate(h, comm, class) \
-    FcObjectCreate_Private((FcObject)(h), comm, class)
 
 /**
  * @brief Verifies the object validity.
@@ -41,6 +33,14 @@ struct _p_FcObject {
             SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT, "Invalid object"); \
     } while (0)
 
-void FcObjectCreate_Private(FcObject obj, MPI_Comm comm, const char *class);
+/**
+ * @brief Initializes an object.
+ *
+ * @param h Any FluidCaster object.
+ * @param comm MPI communicator.
+ * @param[in] class Class name.
+ * @param[in] subclass Subclass name.
+ */
+void FcObjectInit(FcObject obj, MPI_Comm comm, const char *class);
 
 #endif
