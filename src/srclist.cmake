@@ -5,4 +5,6 @@ set(
     nsfsm.c
     object.c
     solution.c
+    viewer.c
+    viewerpcgns.c
 )

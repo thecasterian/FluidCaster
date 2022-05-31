@@ -42,6 +42,7 @@ struct _p_FcNS {
     PetscInt maxsteps;
 };
 
-PetscErrorCode FcNSCreate(FcMesh mesh, FcSolution sol, FcMaterial mat, FcNSType type, FcNSOps ops, void *data, FcNS *ns);
+PetscErrorCode FcNSCreate(FcMesh mesh, FcSolution sol, FcMaterial mat, FcNSType type, FcNSOps ops, void *data,
+                          FcNS *ns);
 
 #endif

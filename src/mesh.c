@@ -2,6 +2,7 @@
 #include <petscdmstag.h>
 #include "../inc/mesh.h"
 #include "../inc/private/meshimpl.h"
+#include "../inc/private/viewerimpl.h"
 
 static PetscErrorCode ConvertBoundaryTypeFromFcMeshToDM(FcMeshBoundaryType fcb, DMBoundaryType *dmb);
 static PetscErrorCode ConvertBoundaryTypeFromDMToFcMesh(DMBoundaryType dmb, FcMeshBoundaryType *fcb);
@@ -83,6 +84,9 @@ PetscErrorCode FcMeshGetInfo(FcMesh mesh, FcMeshInfo *info) {
     info->xs = localinfo.xs;
     info->ys = localinfo.ys;
     info->zs = localinfo.zs;
+    info->xm = localinfo.xm;
+    info->ym = localinfo.ym;
+    info->zm = localinfo.zm;
 
     return 0;
 }
@@ -90,6 +94,18 @@ PetscErrorCode FcMeshGetInfo(FcMesh mesh, FcMeshInfo *info) {
 PetscErrorCode FcMeshGetDM(FcMesh mesh, DM *da, DM *stag) {
     *da = mesh->da;
     *stag = mesh->stag;
+
+    return 0;
+}
+
+PetscErrorCode FcMeshView(FcMesh mesh, FcViewer viewer) {
+    if (viewer->mesh)
+        SETERRQ(mesh->obj.comm, PETSC_ERR_ARG_WRONGSTATE, "Do not reuse viewer");
+    if (viewer->obj.comm != mesh->obj.comm)
+        SETERRQ(mesh->obj.comm, PETSC_ERR_ARG_NOTSAMECOMM, "Viewer and mesh must be in the same communicator");
+
+    viewer->mesh = mesh;
+    PetscCall(viewer->ops->viewmesh(viewer, mesh));
 
     return 0;
 }

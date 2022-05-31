@@ -1,6 +1,7 @@
 #include <petscdm.h>
 #include "../inc/private/meshimpl.h"
 #include "../inc/private/solutionimpl.h"
+#include "../inc/private/viewerimpl.h"
 #include "../inc/solution.h"
 
 PetscErrorCode FcSolutionCreate(FcMesh mesh, FcSolution *sol) {
@@ -42,6 +43,18 @@ PetscErrorCode FcSolutionGetVelocityPressureVec(FcSolution sol, Vec *u, Vec *v, 
         *w = sol->w;
     if (p)
         *p = sol->p;
+
+    return 0;
+}
+
+PetscErrorCode FcSolutionView(FcSolution sol, FcViewer viewer) {
+    if (viewer->sol)
+        SETERRQ(sol->obj.comm, PETSC_ERR_ARG_WRONGSTATE, "Do not reuse viewer");
+    if (viewer->obj.comm != sol->obj.comm)
+        SETERRQ(sol->obj.comm, PETSC_ERR_ARG_NOTSAMECOMM, "Viewer and solution must be in the same communicator");
+
+    viewer->sol = sol;
+    PetscCall(viewer->ops->viewsol(viewer, sol));
 
     return 0;
 }

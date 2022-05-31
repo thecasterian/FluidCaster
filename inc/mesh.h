@@ -7,8 +7,9 @@
 #define MESH_H
 
 #include <mpi.h>
-#include <petscdmtypes.h>
+#include <petscdm.h>
 #include <petscsystypes.h>
+#include "viewer.h"
 
 /**
  * @brief Mesh.
@@ -161,5 +162,13 @@ PetscErrorCode FcMeshGetOwnershipRanges(FcMesh mesh, const PetscInt *lx[], const
  * @warning User must not modify nor destroy these DM objects.
  */
 PetscErrorCode FcMeshGetDM(FcMesh mesh, DM *da, DM *stag);
+
+/**
+ * @brief Views a mesh.
+ *
+ * @param mesh Mesh.
+ * @param viewer Viewer.
+ */
+PetscErrorCode FcMeshView(FcMesh mesh, FcViewer viewer);
 
 #endif

@@ -9,6 +9,7 @@
 #include <petscsystypes.h>
 #include <petscvec.h>
 #include "mesh.h"
+#include "viewer.h"
 
 /**
  * @brief Solution of a fluid dynamics problem.
@@ -43,5 +44,13 @@ PetscErrorCode FcSolutionDestroy(FcSolution *sol);
  * @warning User must not destroy the vectors.
  */
 PetscErrorCode FcSolutionGetVelocityPressureVec(FcSolution sol, Vec *u, Vec *v, Vec *w, Vec *p);
+
+/**
+ * @brief Views a solution.
+ *
+ * @param sol Solution.
+ * @param viewer Viewer.
+ */
+PetscErrorCode FcSolutionView(FcSolution sol, FcViewer viewer);
 
 #endif

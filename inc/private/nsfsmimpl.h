@@ -59,10 +59,4 @@ typedef struct {
     /** @} */
 } NS_FSM;
 
-PetscErrorCode ComputeRHSUstar(KSP ksp, Vec b, void *ctx);
-PetscErrorCode ComputeRHSVstar(KSP ksp, Vec b, void *ctx);
-PetscErrorCode ComputeRHSPprime(KSP ksp, Vec b, void *ctx);
-PetscErrorCode ComputeOperatorsUVstar(KSP ksp, Mat J, Mat Jpre, void *ctx);
-PetscErrorCode ComputeOperatorsPprime(KSP ksp, Mat J, Mat Jpre, void *ctx);
-
 #endif
