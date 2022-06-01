@@ -4,8 +4,12 @@
 #include <petscvec.h>
 #include "../mesh.h"
 #include "../solution.h"
+#include "objectimpl.h"
 
 struct _p_FcSolution {
+    /* Object. */
+    struct _p_FcObject obj;
+
     /* Mesh. */
     FcMesh mesh;
     /* X-velocity. */

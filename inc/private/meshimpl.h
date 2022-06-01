@@ -3,10 +3,11 @@
 
 #include <petscdm.h>
 #include "../mesh.h"
+#include "objectimpl.h"
 
 struct _p_FcMesh {
-    /* MPI communicator. */
-    MPI_Comm comm;
+    struct _p_FcObject obj;
+
     /* Dimension. */
     PetscInt dim;
     /* Boundary types. */
