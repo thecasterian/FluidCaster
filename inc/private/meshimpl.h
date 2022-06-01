@@ -2,17 +2,25 @@
 #define MESH_IMPL_H
 
 #include <petscdm.h>
-#include "objectimpl.h"
 
 struct _p_FcMesh {
-    /** Object. */
-    struct _p_FcObject obj;
-
-    /** Dimension. */
+    /* MPI communicator. */
+    MPI_Comm comm;
+    /* Dimension. */
     PetscInt dim;
-    /** DMDA. */
+    /* Boundary types. */
+    FcMeshBoundaryType bx, by, bz;
+    /* Global number of elements. */
+    PetscInt mx, my, mz;
+    /* Number of processes. */
+    PetscInt px, py, pz;
+    /* Array containing the number of elements in each process */
+    const PetscInt *lx, *ly, *lz;
+    /* DMDA. */
     DM da;
-    /** DMStag. */
+    /* DMDA used by linear solvers. */
+    DM dau, dav, daw, dap;
+    /* DMStag. */
     DM stag;
 };
 

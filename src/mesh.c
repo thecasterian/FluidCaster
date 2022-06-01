@@ -2,59 +2,162 @@
 #include <petscdmstag.h>
 #include "../inc/mesh.h"
 #include "../inc/private/meshimpl.h"
-#include "../inc/private/viewerimpl.h"
+
+static const char *BoundaryTypes[] = {"none", "periodic", "FcMeshBoundaryType", "FC_MESH_BOUNDARY_", NULL};
 
 static PetscErrorCode ConvertBoundaryTypeFromFcMeshToDM(FcMeshBoundaryType fcb, DMBoundaryType *dmb);
 static PetscErrorCode ConvertBoundaryTypeFromDMToFcMesh(DMBoundaryType dmb, FcMeshBoundaryType *fcb);
 
 PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBoundaryType by, PetscInt mx, PetscInt my,
                               PetscInt px, PetscInt py, const PetscInt lx[], const PetscInt ly[], FcMesh *mesh) {
-    DMBoundaryType dmbx, dmby;
-
     /* Allocate memory for the mesh. */
     PetscCall(PetscNew(mesh));
-    FcObjectInit((FcObject)(*mesh), comm, "FcMesh");
-    (*mesh)->dim = 2;
+
+    /* Initialize. */
+    (*mesh)->comm = comm;
+    FcMeshSetDimension(*mesh, 2);
+    FcMeshSetBoundaryType(*mesh, bx, by, FC_MESH_BOUNDARY_NONE);
+    FcMeshSetSizes(*mesh, mx, my, 1);
+    FcMeshSetNumProcs(*mesh, px, py, PETSC_DECIDE);
+    FcMeshSetOwnershipRanges(*mesh, lx, ly, NULL);
     (*mesh)->da = NULL;
     (*mesh)->stag = NULL;
-
-    /* Convert FcMeshBoundaryType to DMBoundaryType. */
-    PetscCall(ConvertBoundaryTypeFromFcMeshToDM(bx, &dmbx));
-    PetscCall(ConvertBoundaryTypeFromFcMeshToDM(by, &dmby));
-
-    /* Create DMDA. */
-    PetscCall(DMDACreate2d(comm, dmbx, dmby, DMDA_STENCIL_STAR, mx, my, px, py, 1, 1, lx, ly, &(*mesh)->da));
 
     return 0;
 }
 
-// TODO: Implement FcMeshCreate3d().
+PetscErrorCode FcMeshCreate3d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBoundaryType by, FcMeshBoundaryType bz,
+                              PetscInt mx, PetscInt my, PetscInt mz, PetscInt px, PetscInt py, PetscInt pz,
+                              const PetscInt lx[], const PetscInt ly[], const PetscInt lz[], FcMesh *mesh) {
+    /* Allocate memory for the mesh. */
+    PetscCall(PetscNew(mesh));
+
+    /* Initialize. */
+    (*mesh)->comm = comm;
+    FcMeshSetDimension(*mesh, 3);
+    FcMeshSetBoundaryType(*mesh, bx, by, bz);
+    FcMeshSetSizes(*mesh, mx, my, mz);
+    FcMeshSetNumProcs(*mesh, px, py, pz);
+    FcMeshSetOwnershipRanges(*mesh, lx, ly, lz);
+    (*mesh)->da = NULL;
+    (*mesh)->stag = NULL;
+
+    return 0;
+}
+
+PetscErrorCode FcMeshSetDimension(FcMesh mesh, PetscInt dim) {
+    mesh->dim = dim;
+
+    return 0;
+}
+
+PetscErrorCode FcMeshSetBoundaryType(FcMesh mesh, FcMeshBoundaryType bx, FcMeshBoundaryType by, FcMeshBoundaryType bz) {
+    mesh->bx = bx;
+    mesh->by = by;
+    mesh->bz = bz;
+
+    return 0;
+}
+
+PetscErrorCode FcMeshSetSizes(FcMesh mesh, PetscInt mx, PetscInt my, PetscInt mz) {
+    mesh->mx = mx;
+    mesh->my = my;
+    mesh->mz = mz;
+
+    return 0;
+}
+
+PetscErrorCode FcMeshRefine(FcMesh mesh, PetscInt n) {
+    PetscInt i;
+
+    for (i = 0; i < n; i++) {
+        mesh->mx = 2 * mesh->mx - 1;
+        mesh->my = 2 * mesh->my - 1;
+        mesh->mz = 2 * mesh->mz - 1;
+    }
+
+    return 0;
+}
+
+PetscErrorCode FcMeshSetNumProcs(FcMesh mesh, PetscInt px, PetscInt py, PetscInt pz) {
+    mesh->px = px;
+    mesh->py = py;
+    mesh->pz = pz;
+
+    return 0;
+}
+
+PetscErrorCode FcMeshSetOwnershipRanges(FcMesh mesh, const PetscInt lx[], const PetscInt ly[], const PetscInt lz[]) {
+    mesh->lx = lx;
+    mesh->ly = ly;
+    mesh->lz = lz;
+
+    return 0;
+}
 
 PetscErrorCode FcMeshSetFromOptions(FcMesh mesh) {
-    PetscCall(DMSetFromOptions(mesh->da));
+    PetscInt nrefs = 0;
+
+    PetscOptionsBegin(mesh->comm, "fc_mesh_", "Mesh (FcMesh) options", "FcMesh");
+
+    PetscOptionsInt("-dim", "Dimension", "FcMeshSetDimension", mesh->dim, &mesh->dim, NULL);
+    PetscOptionsEnum("-bndry_x", "Boundary type in x direction", "FcMeshSetBoundaryType", BoundaryTypes,
+                     (PetscEnum)mesh->bx, (PetscEnum *)&mesh->bx, NULL);
+    PetscOptionsEnum("-bndry_y", "Boundary type in y direction", "FcMeshSetBoundaryType", BoundaryTypes,
+                     (PetscEnum)mesh->by, (PetscEnum *)&mesh->by, NULL);
+    if (mesh->dim == 3)
+        PetscOptionsEnum("-bndry_z", "Boundary type in z direction", "FcMeshSetBoundaryType", BoundaryTypes,
+                         (PetscEnum)mesh->bz, (PetscEnum *)&mesh->bz, NULL);
+    PetscOptionsInt("-grid_x", "Number of grid points in x direction", "FcMeshSetSizes", mesh->mx, &mesh->mx, NULL);
+    PetscOptionsInt("-grid_y", "Number of grid points in y direction", "FcMeshSetSizes", mesh->my, &mesh->my, NULL);
+    if (mesh->dim == 3)
+        PetscOptionsInt("-grid_z", "Number of grid points in z direction", "FcMeshSetSizes", mesh->mz, &mesh->mz, NULL);
+    PetscOptionsInt("-refine", "Uniformly refine mesh one or more times", "FcMeshRefine", nrefs, &nrefs, NULL);
+    PetscOptionsInt("-processors_x", "Number of processors in x direction", "FcMeshSetNumProcs", mesh->px, &mesh->px,
+                    NULL);
+    PetscOptionsInt("-processors_y", "Number of processors in y direction", "FcMeshSetNumProcs", mesh->py, &mesh->py,
+                    NULL);
+    if (mesh->dim == 3)
+        PetscOptionsInt("-processors_z", "Number of processors in z direction", "FcMeshSetNumProcs", mesh->pz,
+                        &mesh->pz, NULL);
+
+    PetscOptionsEnd();
+
+    FcMeshRefine(mesh, nrefs);
 
     return 0;
 }
 
 PetscErrorCode FcMeshSetUp(FcMesh mesh) {
-    MPI_Comm comm;
-    PetscInt dim, mx, my, mz, px, py, pz;
-    const PetscInt *lx, *ly, *lz;
     DMBoundaryType bx, by, bz;
 
-    /* Set up DMDA. */
+    PetscCall(ConvertBoundaryTypeFromFcMeshToDM(mesh->bx, &bx));
+    PetscCall(ConvertBoundaryTypeFromFcMeshToDM(mesh->by, &by));
+    PetscCall(ConvertBoundaryTypeFromFcMeshToDM(mesh->bz, &bz));
+
+    /* Create DMDA. */
+    if (mesh->dim == 2)
+        PetscCall(DMDACreate2d(mesh->comm, bx, by, DMDA_STENCIL_STAR, mesh->mx, mesh->my, mesh->px, mesh->py, 1, 1,
+                               mesh->lx, mesh->ly, &mesh->da));
+    else
+        PetscCall(DMDACreate3d(mesh->comm, bx, by, bz, DMDA_STENCIL_STAR, mesh->mx, mesh->my, mesh->mz, mesh->px,
+                               mesh->py, mesh->pz, 1, 1, mesh->lx, mesh->ly, mesh->lz, &mesh->da));
     PetscCall(DMSetUp(mesh->da));
 
-    /* Get DMDA informations. */
-    PetscCall(PetscObjectGetComm((PetscObject)mesh->da, &comm));
-    PetscCall(DMDAGetInfo(mesh->da, &dim, &mx, &my, &mz, &px, &py, &pz, NULL, NULL, &bx, &by, &bz, NULL));
-    PetscCall(DMDAGetOwnershipRanges(mesh->da, &lx, &ly, &lz));
+    /* Clone DMDA. */
+    PetscCall(DMClone(mesh->da, &mesh->dau));
+    PetscCall(DMClone(mesh->da, &mesh->dav));
+    if (mesh->dim == 3)
+        PetscCall(DMClone(mesh->da, &mesh->daw));
+    PetscCall(DMClone(mesh->da, &mesh->dap));
 
     /* Create DMStag. */
-    if (dim == 2)
-        PetscCall(DMStagCreate2d(comm, bx, by, mx, my, px, py, 0, 1, 0, DMSTAG_STENCIL_STAR, 1, lx, ly, &mesh->stag));
+    if (mesh->dim == 2)
+        PetscCall(DMStagCreate2d(mesh->comm, bx, by, mesh->mx, mesh->my, mesh->px, mesh->py, 0, 1, 0,
+                                 DMSTAG_STENCIL_STAR, 1, mesh->lx, mesh->ly, &mesh->stag));
     else
-        PetscCall(DMStagCreate3d(comm, bx, by, bz, mx, my, mz, px, py, pz, 0, 0, 1, 0, DMSTAG_STENCIL_STAR, 1, lx, ly, lz, &mesh->stag));
+        PetscCall(DMStagCreate3d(mesh->comm, bx, by, bz, mesh->mx, mesh->my, mesh->mz, mesh->px, mesh->py, mesh->pz, 0,
+                                 0, 1, 0, DMSTAG_STENCIL_STAR, 1, mesh->lx, mesh->ly, mesh->lz, &mesh->stag));
     PetscCall(DMSetUp(mesh->stag));
 
     return 0;
@@ -79,8 +182,7 @@ PetscErrorCode FcMeshGetInfo(FcMesh mesh, FcMeshInfo *info) {
 
     PetscCall(ConvertBoundaryTypeFromDMToFcMesh(dmbx, &info->bx));
     PetscCall(ConvertBoundaryTypeFromDMToFcMesh(dmby, &info->by));
-    if (info->dim == 3)
-        PetscCall(ConvertBoundaryTypeFromDMToFcMesh(dmbz, &info->bz));
+    PetscCall(ConvertBoundaryTypeFromDMToFcMesh(dmbz, &info->bz));
     info->xs = localinfo.xs;
     info->ys = localinfo.ys;
     info->zs = localinfo.zs;
@@ -94,18 +196,6 @@ PetscErrorCode FcMeshGetInfo(FcMesh mesh, FcMeshInfo *info) {
 PetscErrorCode FcMeshGetDM(FcMesh mesh, DM *da, DM *stag) {
     *da = mesh->da;
     *stag = mesh->stag;
-
-    return 0;
-}
-
-PetscErrorCode FcMeshView(FcMesh mesh, FcViewer viewer) {
-    if (viewer->mesh)
-        SETERRQ(mesh->obj.comm, PETSC_ERR_ARG_WRONGSTATE, "Do not reuse viewer");
-    if (viewer->obj.comm != mesh->obj.comm)
-        SETERRQ(mesh->obj.comm, PETSC_ERR_ARG_NOTSAMECOMM, "Viewer and mesh must be in the same communicator");
-
-    viewer->mesh = mesh;
-    PetscCall(viewer->ops->viewmesh(viewer, mesh));
 
     return 0;
 }

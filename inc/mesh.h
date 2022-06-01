@@ -9,6 +9,7 @@
 #include <mpi.h>
 #include <petscdm.h>
 #include <petscsystypes.h>
+#include <petscviewertypes.h>
 #include "viewer.h"
 
 /**
@@ -89,9 +90,9 @@ PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBounda
  * @brief Creates a mesh.
  *
  * @param comm MPI communicator.
- * @param bx Type of boundary in the x-direction.
- * @param by Type of boundary in the y-direction.
- * @param bz Type of boundary in the z-direction.
+ * @param bx Boundary type in the x-direction.
+ * @param by Boundary type in the y-direction.
+ * @param bz Boundary type in the z-direction.
  * @param mx Global number of elements in the x-direction.
  * @param my Global number of elements in the y-direction.
  * @param mz Global number of elements in the z-direction.
@@ -109,6 +110,65 @@ PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBounda
 PetscErrorCode FcMeshCreate3d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBoundaryType by, FcMeshBoundaryType bz,
                               PetscInt mx, PetscInt my, PetscInt mz, PetscInt px, PetscInt py, PetscInt pz,
                               const PetscInt lx[], const PetscInt ly[], const PetscInt lz[], FcMesh *mesh);
+
+/**
+ * @brief Sets the dimension.
+ *
+ * @param mesh Mesh.
+ * @param dim Dimension: 2 or 3.
+ */
+PetscErrorCode FcMeshSetDimension(FcMesh mesh, PetscInt dim);
+
+/**
+ * @brief Sets the boundary type.
+ *
+ * @param mesh Mesh.
+ * @param bx Boundary type in the x-direction.
+ * @param by Boundary type in the y-direction.
+ * @param bz Boundary type in the z-direction. Ignored for a 2D mesh.
+ */
+PetscErrorCode FcMeshSetBoundaryType(FcMesh mesh, FcMeshBoundaryType bx, FcMeshBoundaryType by, FcMeshBoundaryType bz);
+
+/**
+ * @brief Sets the global number of grid points in each direction.
+ *
+ * @param mesh Mesh.
+ * @param mx Global number of elements in the x-direction.
+ * @param my Global number of elements in the y-direction.
+ * @param mz Global number of elements in the z-direction. Ignored for a 2D mesh.
+ */
+PetscErrorCode FcMeshSetSizes(FcMesh mesh, PetscInt mx, PetscInt my, PetscInt mz);
+
+/**
+ * @brief Refines a mesh uniformly in all directions. The global number of grid point in a direction after one
+ * refinement is 2x-1 where x is the original number.
+ *
+ * @param mesh Mesh.
+ * @param n Number of refinements.
+ */
+PetscErrorCode FcMeshRefine(FcMesh mesh, PetscInt n);
+
+/**
+ * @brief Sets the number of processes in each direction.
+ *
+ * @param mesh Mesh.
+ * @param mx Number of processes in the x-direction, or PETSC_DECIDE to have calculated.
+ * @param my Number of processes in the y-direction, or PETSC_DECIDE to have calculated.
+ * @param mz Number of processes in the z-direction, or PETSC_DECIDE to have calculated. Ignored for a 2D mesh.
+ */
+PetscErrorCode FcMeshSetNumProcs(FcMesh mesh, PetscInt px, PetscInt py, PetscInt pz);
+
+/**
+ * @brief Sets the number of elements in the x-, y-, and z-directions that are owned by each process.
+ *
+ * @param mesh Mesh.
+ * @param lx Ownership along the x-direction, or NULL.
+ * @param ly Ownership along the y-direction, or NULL.
+ * @param lz Ownership along the z-direction, or NULL. Ignored for a 2D mesh.
+ *
+ * @note These correspond to the arguments passed to FcMeshCreate2d() and FcMeshCreate3d().
+ */
+PetscErrorCode FcMeshSetOwnershipRanges(FcMesh mesh, const PetscInt lx[], const PetscInt ly[], const PetscInt lz[]);
 
 /**
  * @brief Sets parameters in a mesh from the options database.
@@ -162,13 +222,5 @@ PetscErrorCode FcMeshGetOwnershipRanges(FcMesh mesh, const PetscInt *lx[], const
  * @warning User must not modify nor destroy these DM objects.
  */
 PetscErrorCode FcMeshGetDM(FcMesh mesh, DM *da, DM *stag);
-
-/**
- * @brief Views a mesh.
- *
- * @param mesh Mesh.
- * @param viewer Viewer.
- */
-PetscErrorCode FcMeshView(FcMesh mesh, FcViewer viewer);
 
 #endif
