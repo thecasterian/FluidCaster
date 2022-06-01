@@ -1,6 +1,6 @@
 /**
  * @file material.h
- * @brief Materials.
+ * @brief Materials used in the solver.
  */
 
 #ifndef MATERIAL_H
@@ -11,11 +11,22 @@
 /**
  * @brief Material definition.
  */
-typedef struct {
-    /** Density. */
-    PetscReal rho;
-    /** Viscosity. */
-    PetscReal mu;
-} FcMaterial;
+typedef struct _p_FcMaterial *FcMaterial;
+
+/**
+ * @brief Creates a meterial.
+ *
+ * @param rho Density.
+ * @param mu Viscosity.
+ * @param[out] mat Resulting material.
+ */
+PetscErrorCode FcMaterialCreate(PetscReal rho, PetscReal mu, FcMaterial *mat);
+
+/**
+ * @brief Destroys a material.
+ *
+ * @param[in] mat Material to destroy.
+ */
+PetscErrorCode FcMaterialDestroy(FcMaterial *mat);
 
 #endif
