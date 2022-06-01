@@ -2,6 +2,7 @@
 #define MESH_IMPL_H
 
 #include <petscdm.h>
+#include "../mesh.h"
 
 struct _p_FcMesh {
     /* MPI communicator. */

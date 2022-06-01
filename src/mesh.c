@@ -1,6 +1,5 @@
 #include <petscdmda.h>
 #include <petscdmstag.h>
-#include "../inc/mesh.h"
 #include "../inc/private/meshimpl.h"
 
 static const char *BoundaryTypes[] = {"none", "periodic", "FcMeshBoundaryType", "FC_MESH_BOUNDARY_", NULL};
@@ -100,26 +99,30 @@ PetscErrorCode FcMeshSetFromOptions(FcMesh mesh) {
 
     PetscOptionsBegin(mesh->comm, "fc_mesh_", "Mesh (FcMesh) options", "FcMesh");
 
-    PetscOptionsInt("-dim", "Dimension", "FcMeshSetDimension", mesh->dim, &mesh->dim, NULL);
-    PetscOptionsEnum("-bndry_x", "Boundary type in x direction", "FcMeshSetBoundaryType", BoundaryTypes,
-                     (PetscEnum)mesh->bx, (PetscEnum *)&mesh->bx, NULL);
-    PetscOptionsEnum("-bndry_y", "Boundary type in y direction", "FcMeshSetBoundaryType", BoundaryTypes,
-                     (PetscEnum)mesh->by, (PetscEnum *)&mesh->by, NULL);
+    PetscCall(PetscOptionsInt("-dim", "Dimension", "FcMeshSetDimension", mesh->dim, &mesh->dim, NULL));
+    PetscCall(PetscOptionsEnum("-bndry_x", "Boundary type in x direction", "FcMeshSetBoundaryType", BoundaryTypes,
+                               (PetscEnum)mesh->bx, (PetscEnum *)&mesh->bx, NULL));
+    PetscCall(PetscOptionsEnum("-bndry_y", "Boundary type in y direction", "FcMeshSetBoundaryType", BoundaryTypes,
+                               (PetscEnum)mesh->by, (PetscEnum *)&mesh->by, NULL));
     if (mesh->dim == 3)
-        PetscOptionsEnum("-bndry_z", "Boundary type in z direction", "FcMeshSetBoundaryType", BoundaryTypes,
-                         (PetscEnum)mesh->bz, (PetscEnum *)&mesh->bz, NULL);
-    PetscOptionsInt("-grid_x", "Number of grid points in x direction", "FcMeshSetSizes", mesh->mx, &mesh->mx, NULL);
-    PetscOptionsInt("-grid_y", "Number of grid points in y direction", "FcMeshSetSizes", mesh->my, &mesh->my, NULL);
+        PetscCall(PetscOptionsEnum("-bndry_z", "Boundary type in z direction", "FcMeshSetBoundaryType", BoundaryTypes,
+                                   (PetscEnum)mesh->bz, (PetscEnum *)&mesh->bz, NULL));
+    PetscCall(PetscOptionsInt("-grid_x", "Number of grid points in x direction", "FcMeshSetSizes", mesh->mx, &mesh->mx,
+                              NULL));
+    PetscCall(PetscOptionsInt("-grid_y", "Number of grid points in y direction", "FcMeshSetSizes", mesh->my, &mesh->my,
+                              NULL));
     if (mesh->dim == 3)
-        PetscOptionsInt("-grid_z", "Number of grid points in z direction", "FcMeshSetSizes", mesh->mz, &mesh->mz, NULL);
-    PetscOptionsInt("-refine", "Uniformly refine mesh one or more times", "FcMeshRefine", nrefs, &nrefs, NULL);
-    PetscOptionsInt("-processors_x", "Number of processors in x direction", "FcMeshSetNumProcs", mesh->px, &mesh->px,
-                    NULL);
-    PetscOptionsInt("-processors_y", "Number of processors in y direction", "FcMeshSetNumProcs", mesh->py, &mesh->py,
-                    NULL);
+        PetscCall(PetscOptionsInt("-grid_z", "Number of grid points in z direction", "FcMeshSetSizes", mesh->mz,
+                                  &mesh->mz, NULL));
+    PetscCall(PetscOptionsInt("-refine", "Uniformly refine mesh one or more times", "FcMeshRefine", nrefs, &nrefs,
+                              NULL));
+    PetscCall(PetscOptionsInt("-processors_x", "Number of processors in x direction", "FcMeshSetNumProcs", mesh->px,
+                              &mesh->px, NULL));
+    PetscCall(PetscOptionsInt("-processors_y", "Number of processors in y direction", "FcMeshSetNumProcs", mesh->py,
+                              &mesh->py, NULL));
     if (mesh->dim == 3)
-        PetscOptionsInt("-processors_z", "Number of processors in z direction", "FcMeshSetNumProcs", mesh->pz,
-                        &mesh->pz, NULL);
+        PetscCall(PetscOptionsInt("-processors_z", "Number of processors in z direction", "FcMeshSetNumProcs", mesh->pz,
+                                  &mesh->pz, NULL));
 
     PetscOptionsEnd();
 

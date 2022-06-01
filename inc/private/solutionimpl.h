@@ -3,22 +3,51 @@
 
 #include <petscvec.h>
 #include "../mesh.h"
-#include "objectimpl.h"
+#include "../solution.h"
 
 struct _p_FcSolution {
-    /** Object. */
-    struct _p_FcObject obj;
-
-    /** Mesh. */
+    /* Mesh. */
     FcMesh mesh;
-    /** X-velocity. */
+    /* X-velocity. */
     Vec u;
-    /** Y-velocity. */
+    /* Y-velocity. */
     Vec v;
-    /** Z-velocity. */
+    /* Z-velocity. */
     Vec w;
-    /** Pressure. */
+    /* True pressure. */
+    Vec p_true;
+
+    /* Pressure at the half time step. */
     Vec p;
+    /* Face-centered velocity. */
+    Vec UVW;
+    /* Intermediate x-velocity. */
+    Vec u_star;
+    /* Intermediate y-velocity. */
+    Vec v_star;
+    /* Intermediate z-velocity. */
+    Vec w_star;
+    /* Face-centered intermediate velocity. */
+    Vec UVW_star;
+    /* Pressure correction. */
+    Vec p_prime;
+    /* X-convection term. */
+    Vec Nu;
+    /* Y-convection term. */
+    Vec Nv;
+    /* Z-convection term. */
+    Vec Nw;
+    /* Pressure at the previous half time step. */
+    Vec p_prev;
+    /* X-convection term at the previous time step. */
+    Vec Nu_prev;
+    /* Y-convection term at the previous time step. */
+    Vec Nv_prev;
+    /* Z-convection term at the previous time step. */
+    Vec Nw_prev;
+
+    /* Temporaty values used in velocity interpolation. */
+    Vec u_tilde, v_tilde, w_tilde;
 };
 
 #endif
