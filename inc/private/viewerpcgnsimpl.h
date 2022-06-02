@@ -12,12 +12,8 @@ typedef struct {
     int B;
     /** Zone index. */
     int Z;
-    /** Coordinate indices. */
-    int Cx, Cy, Cz;
     /** Solution index. */
     int S;
-    /** Field index. */
-    int F;
 } VIEWER_PCGNS;
 
 #endif

@@ -1,22 +1,26 @@
 #include "../inc/private/viewerimpl.h"
 
-PetscErrorCode FcViewerCreate(MPI_Comm comm, FcViewerType type, FcViewerOps ops, void *data, FcViewer *viewer) {
+PetscErrorCode FcViewerCreate(MPI_Comm comm, FcViewerType type, void *data, FcViewer *viewer) {
+    FcViewer v;
+
     /* Allocate memory for the viewer. */
-    PetscCall(PetscNew(viewer));
-    FcObjectInit((FcObject)(*viewer), comm, "FcViewer");
-    (*viewer)->obj.type = type;
-    (*viewer)->ops[0] = *ops;
-    (*viewer)->data = data;
+    PetscCall(PetscNew(&v));
 
     /* Initialize. */
-    (*viewer)->mesh = NULL;
-    (*viewer)->sol = NULL;
+    FcObjectInit((FcObject)v, comm, "FcViewer");
+    v->obj.type = type;
+    v->data = data;
+    v->mesh = NULL;
+    v->sol = NULL;
+
+    /* Get the reference. */
+    PetscCall(FcObjectGetReference((FcObject)v, (FcObject *)viewer));
 
     return 0;
 }
 
-PetscErrorCode FcViewerClose(FcViewer *viewer) {
-    PetscCall((*viewer)->ops->close(viewer));
+PetscErrorCode FcViewerDestroy(FcViewer *viewer) {
+    PetscCall(FcObjectRestoreReference((FcObject *)viewer));
 
     return 0;
 }

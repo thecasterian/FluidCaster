@@ -1,6 +1,7 @@
 #include <petscdm.h>
 #include "../inc/private/meshimpl.h"
 #include "../inc/private/solutionimpl.h"
+#include "../inc/private/viewerimpl.h"
 
 static PetscErrorCode FcObjectDestroy_Solution(FcObject *obj);
 
@@ -72,6 +73,13 @@ PetscErrorCode FcSolutionGetVelocityVec(FcSolution sol, Vec *u, Vec *v, Vec *w) 
 PetscErrorCode FcSolutionGetTruePressureVec(FcSolution sol, Vec *p_true) {
     if (p_true)
         *p_true = sol->p_true;
+
+    return 0;
+}
+
+PetscErrorCode FcSolutionView(FcSolution sol, FcViewer viewer) {
+    PetscCall(FcObjectGetReference((FcObject)sol, (FcObject *)&viewer->sol));
+    PetscCall(viewer->ops.viewsol(viewer, sol));
 
     return 0;
 }

@@ -223,4 +223,12 @@ PetscErrorCode FcMeshGetOwnershipRanges(FcMesh mesh, const PetscInt *lx[], const
  */
 PetscErrorCode FcMeshGetDM(FcMesh mesh, DM *da, DM *stag);
 
+/**
+ * @brief Views a mesh.
+ *
+ * @param mesh Mesh.
+ * @param viewer Viewer.
+ */
+PetscErrorCode FcMeshView(FcMesh mesh, FcViewer viewer);
+
 #endif

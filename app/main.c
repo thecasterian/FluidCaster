@@ -1,8 +1,9 @@
 #include <petscsys.h>
 #include <petscdmda.h>
+#include "../inc/material.h"
 #include "../inc/mesh.h"
+#include "../inc/ns.h"
 #include "../inc/solution.h"
-#include "../inc/nsfsm.h"
 #include "../inc/viewerpcgns.h"
 
 static const char *const help = "FluidCaster\n\n";
@@ -26,26 +27,27 @@ int main(int argc, char *argv[]) {
     /* Create solution. */
     PetscCall(FcSolutionCreate(mesh, &sol));
 
-    /* Set material. */
-    mat.rho = 1.0;
-    mat.mu = 1.0e-3;
+    /* Create material. */
+    PetscCall(FcMaterialCreate(1.0, 1.0e-3, &mat));
 
-    /* Create solver. */
-    PetscCall(FcNSFSMCreate(mesh, sol, mat, &ns));
+    /* Create NS solver. */
+    PetscCall(FcNSCreate(mesh, sol, mat, &ns));
     PetscCall(FcNSSetFromOptions(ns));
+    PetscCall(FcNSSetUp(ns));
 
     /* Solve. */
     PetscCall(FcNSSolve(ns));
 
-    /* View. */
-    PetscCall(FcViewerPCGNSOpen(PETSC_COMM_WORLD, "cavity.cgns", &viewer));
+    /* Save as CGNS. */
+    PetscCall(FcViewerPCGNSCreate(PETSC_COMM_WORLD, "cavity.cgns", &viewer));
     PetscCall(FcMeshView(mesh, viewer));
     PetscCall(FcSolutionView(sol, viewer));
-    PetscCall(FcViewerClose(&viewer));
+    PetscCall(FcViewerDestroy(&viewer));
 
     /* Destroy. */
     PetscCall(FcMeshDestory(&mesh));
     PetscCall(FcSolutionDestroy(&sol));
+    PetscCall(FcMaterialDestroy(&mat));
     PetscCall(FcNSDestroy(&ns));
 
     /* Finalize PETSc. */

@@ -52,4 +52,12 @@ PetscErrorCode FcSolutionGetVelocityVec(FcSolution sol, Vec *u, Vec *v, Vec *w);
  */
 PetscErrorCode FcSolutionGetTruePressureVec(FcSolution sol, Vec *p_true);
 
+/**
+ * @brief Views a solution.
+ *
+ * @param sol Solution.
+ * @param viewer Viewer.
+ */
+PetscErrorCode FcSolutionView(FcSolution sol, FcViewer viewer);
+
 #endif

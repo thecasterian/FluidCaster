@@ -1,6 +1,7 @@
 #include <petscdmda.h>
 #include <petscdmstag.h>
 #include "../inc/private/meshimpl.h"
+#include "../inc/private/viewerimpl.h"
 
 static const char *BoundaryTypes[] = {"none", "periodic", "FcMeshBoundaryType", "FC_MESH_BOUNDARY_", NULL};
 
@@ -210,6 +211,13 @@ PetscErrorCode FcMeshGetInfo(FcMesh mesh, FcMeshInfo *info) {
 PetscErrorCode FcMeshGetDM(FcMesh mesh, DM *da, DM *stag) {
     *da = mesh->da;
     *stag = mesh->stag;
+
+    return 0;
+}
+
+PetscErrorCode FcMeshView(FcMesh mesh, FcViewer viewer) {
+    PetscCall(FcObjectGetReference((FcObject)mesh, (FcObject *)&viewer->mesh));
+    PetscCall(viewer->ops.viewmesh(viewer, mesh));
 
     return 0;
 }

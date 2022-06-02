@@ -22,10 +22,10 @@ typedef const char *FcViewerType;
 #define FC_VIEWER_PCGNS "PCGNS"
 
 /**
- * @brief Close a viewer.
+ * @brief Destroys a viewer.
  *
  * @param viewer Viewer to close.
  */
-PetscErrorCode FcViewerClose(FcViewer *viewer);
+PetscErrorCode FcViewerDestroy(FcViewer *viewer);
 
 #endif

@@ -6,4 +6,6 @@ set(
     ns.c
     object.c
     solution.c
+    viewer.c
+    viewerpcgns.c
 )

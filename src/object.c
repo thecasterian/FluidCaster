@@ -27,6 +27,9 @@ PetscErrorCode FcObjectGetReference(FcObject obj, FcObject *ref) {
 }
 
 PetscErrorCode FcObjectRestoreReference(FcObject *ref) {
+    if (!(*ref))
+        return 0;
+
     FcObjectVerifyValidity(*ref);
 
     (*ref)->refcnt--;

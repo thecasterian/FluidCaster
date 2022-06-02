@@ -10,24 +10,23 @@
             SETERRQ(PETSC_COMM_SELF, FC_ERR_CGNS, "%s", cg_get_error()); \
     } while (0)
 
-static PetscErrorCode FcViewerClose_PCGNS(FcViewer *viewer);
+static PetscErrorCode FcObjectDestroy_ViewerPCGNS(FcObject *obj);
 static PetscErrorCode FcViewerViewMesh_PCGNS(FcViewer viewer, FcMesh mesh);
 static PetscErrorCode FcViewerViewSolution_PCGNS(FcViewer viewer, FcSolution sol);
 
-PetscErrorCode FcViewerPCGNSOpen(MPI_Comm comm, const char *filename, FcViewer *viewer) {
-    struct _FcViewerOps ops;
+PetscErrorCode FcViewerPCGNSCreate(MPI_Comm comm, const char *filename, FcViewer *viewer) {
     VIEWER_PCGNS *pcgns;
-
-    /* Set operations. */
-    ops.close = FcViewerClose_PCGNS;
-    ops.viewmesh = FcViewerViewMesh_PCGNS;
-    ops.viewsol = FcViewerViewSolution_PCGNS;
 
     /* Create data. */
     PetscCall(PetscNew(&pcgns));
 
     /* Create viewer. */
-    PetscCall(FcViewerCreate(comm, FC_VIEWER_PCGNS, &ops, pcgns, viewer));
+    PetscCall(FcViewerCreate(comm, FC_VIEWER_PCGNS, pcgns, viewer));
+
+    /* Set operations. */
+    (*viewer)->obj.ops.destroy = FcObjectDestroy_ViewerPCGNS;
+    (*viewer)->ops.viewmesh = FcViewerViewMesh_PCGNS;
+    (*viewer)->ops.viewsol = FcViewerViewSolution_PCGNS;
 
     /* Open file. */
     CgnsCall(cgp_open(filename, CG_MODE_WRITE, &pcgns->fn));
@@ -35,8 +34,9 @@ PetscErrorCode FcViewerPCGNSOpen(MPI_Comm comm, const char *filename, FcViewer *
     return 0;
 }
 
-static PetscErrorCode FcViewerClose_PCGNS(FcViewer *viewer) {
-    VIEWER_PCGNS *pcgns = (*viewer)->data;
+static PetscErrorCode FcObjectDestroy_ViewerPCGNS(FcObject *obj) {
+    FcViewer viewer = (FcViewer)(*obj);
+    VIEWER_PCGNS *pcgns = viewer->data;
 
     /* Close file. */
     CgnsCall(cgp_close(pcgns->fn));
@@ -44,9 +44,12 @@ static PetscErrorCode FcViewerClose_PCGNS(FcViewer *viewer) {
     /* Free data. */
     PetscCall(PetscFree(pcgns));
 
+    /* Restore the references. */
+    PetscCall(FcObjectRestoreReference((FcObject *)&viewer->mesh));
+    PetscCall(FcObjectRestoreReference((FcObject *)&viewer->sol));
+
     /* Free viewer. */
-    PetscCall(PetscFree(*viewer));
-    *viewer = NULL;
+    PetscCall(PetscFree(viewer));
 
     return 0;
 }
@@ -56,6 +59,7 @@ static PetscErrorCode FcViewerViewMesh_PCGNS(FcViewer viewer, FcMesh mesh) {
     FcMeshInfo info;
     cgsize_t zonesize[9] = {0}, rmin[3] = {0}, rmax[3] = {0};
     double *x, *y, *z, hx, hy, hz;
+    int Cx, Cy, Cz;
     cgsize_t i, j, k;
     PetscInt cnt;
 
@@ -135,13 +139,13 @@ static PetscErrorCode FcViewerViewMesh_PCGNS(FcViewer viewer, FcMesh mesh) {
     CgnsCall(cg_zone_write(pcgns->fn, pcgns->B, "Zone", zonesize, Structured, &pcgns->Z));
 
     /* Write coordinate. */
-    CgnsCall(cgp_coord_write(pcgns->fn, pcgns->B, pcgns->Z, RealDouble, "CoordinateX", &pcgns->Cx));
-    CgnsCall(cgp_coord_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->Cx, rmin, rmax, x));
-    CgnsCall(cgp_coord_write(pcgns->fn, pcgns->B, pcgns->Z, RealDouble, "CoordinateY", &pcgns->Cy));
-    CgnsCall(cgp_coord_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->Cy, rmin, rmax, y));
+    CgnsCall(cgp_coord_write(pcgns->fn, pcgns->B, pcgns->Z, RealDouble, "CoordinateX", &Cx));
+    CgnsCall(cgp_coord_write_data(pcgns->fn, pcgns->B, pcgns->Z, Cx, rmin, rmax, x));
+    CgnsCall(cgp_coord_write(pcgns->fn, pcgns->B, pcgns->Z, RealDouble, "CoordinateY", &Cy));
+    CgnsCall(cgp_coord_write_data(pcgns->fn, pcgns->B, pcgns->Z, Cy, rmin, rmax, y));
     if (mesh->dim == 3) {
-        CgnsCall(cgp_coord_write(pcgns->fn, pcgns->B, pcgns->Z, RealDouble, "CoordinateZ", &pcgns->Cz));
-        CgnsCall(cgp_coord_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->Cz, rmin, rmax, z));
+        CgnsCall(cgp_coord_write(pcgns->fn, pcgns->B, pcgns->Z, RealDouble, "CoordinateZ", &Cz));
+        CgnsCall(cgp_coord_write_data(pcgns->fn, pcgns->B, pcgns->Z, Cz, rmin, rmax, z));
     }
 
     /* Free memory. */
@@ -159,6 +163,7 @@ static PetscErrorCode FcViewerViewSolution_PCGNS(FcViewer viewer, FcSolution sol
     FcMeshInfo info;
     cgsize_t rmin[3] = {0}, rmax[3] = {0};
     double *arruraw, *arrvraw, *arrwraw, *arrpraw;
+    int Fu, Fv, Fw, Fp;
     PetscInt i, j, k;
     PetscInt cnt;
 
@@ -196,9 +201,9 @@ static PetscErrorCode FcViewerViewSolution_PCGNS(FcViewer viewer, FcSolution sol
         cnt = 0;
         for (j = rmin[1]; j <= rmax[1]; j++)
             for (i = rmin[0]; i <= rmax[0]; i++) {
-                arruraw[cnt] = arru[j][i];
-                arrvraw[cnt] = arrv[j][i];
-                arrpraw[cnt] = arrp[j][i];
+                arruraw[cnt] = arru[j-1][i-1];
+                arrvraw[cnt] = arrv[j-1][i-1];
+                arrpraw[cnt] = arrp[j-1][i-1];
                 cnt++;
             }
         PetscCall(DMDAVecRestoreArrayRead(mesh->da, sol->u, &arru));
@@ -218,10 +223,10 @@ static PetscErrorCode FcViewerViewSolution_PCGNS(FcViewer viewer, FcSolution sol
         for (k = rmin[2]; k <= rmax[2]; k++)
             for (j = rmin[1]; j <= rmax[1]; j++)
                 for (i = rmin[0]; i <= rmax[0]; i++) {
-                    arruraw[cnt] = arru[k][j][i];
-                    arrvraw[cnt] = arrv[k][j][i];
-                    arrwraw[cnt] = arrw[k][j][i];
-                    arrpraw[cnt] = arrp[k][j][i];
+                    arruraw[cnt] = arru[k-1][j-1][i-1];
+                    arrvraw[cnt] = arrv[k-1][j-1][i-1];
+                    arrwraw[cnt] = arrw[k-1][j-1][i-1];
+                    arrpraw[cnt] = arrp[k-1][j-1][i-1];
                     cnt++;
                 }
         PetscCall(DMDAVecRestoreArrayRead(mesh->da, sol->u, &arru));
@@ -234,16 +239,16 @@ static PetscErrorCode FcViewerViewSolution_PCGNS(FcViewer viewer, FcSolution sol
     CgnsCall(cg_sol_write(pcgns->fn, pcgns->B, pcgns->Z, "Solution", CellCenter, &pcgns->S));
 
     /* Write solution. */
-    CgnsCall(cgp_field_write(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, RealDouble, "VelocityX", &pcgns->F));
-    CgnsCall(cgp_field_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, pcgns->F, rmin, rmax, arruraw));
-    CgnsCall(cgp_field_write(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, RealDouble, "VelocityY", &pcgns->F));
-    CgnsCall(cgp_field_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, pcgns->F, rmin, rmax, arrvraw));
+    CgnsCall(cgp_field_write(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, RealDouble, "VelocityX", &Fu));
+    CgnsCall(cgp_field_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, Fu, rmin, rmax, arruraw));
+    CgnsCall(cgp_field_write(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, RealDouble, "VelocityY", &Fv));
+    CgnsCall(cgp_field_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, Fv, rmin, rmax, arrvraw));
     if (mesh->dim == 3) {
-        CgnsCall(cgp_field_write(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, RealDouble, "VelocityZ", &pcgns->F));
-        CgnsCall(cgp_field_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, pcgns->F, rmin, rmax, arrwraw));
+        CgnsCall(cgp_field_write(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, RealDouble, "VelocityZ", &Fw));
+        CgnsCall(cgp_field_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, Fw, rmin, rmax, arrwraw));
     }
-    CgnsCall(cgp_field_write(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, RealDouble, "Pressure", &pcgns->F));
-    CgnsCall(cgp_field_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, pcgns->F, rmin, rmax, arrpraw));
+    CgnsCall(cgp_field_write(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, RealDouble, "Pressure", &Fp));
+    CgnsCall(cgp_field_write_data(pcgns->fn, pcgns->B, pcgns->Z, pcgns->S, Fp, rmin, rmax, arrpraw));
 
     return 0;
 }
