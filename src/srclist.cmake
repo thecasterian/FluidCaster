@@ -1,10 +1,9 @@
 set(
     SRCS
+    fsm.c
+    material.c
     mesh.c
     ns.c
-    nsfsm.c
     object.c
     solution.c
-    viewer.c
-    viewerpcgns.c
 )

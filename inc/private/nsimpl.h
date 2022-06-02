@@ -1,48 +1,38 @@
 #ifndef NS_IMPL_H
 #define NS_IMPL_H
 
+#include <petscksp.h>
 #include <petscsystypes.h>
 #include "../material.h"
 #include "../ns.h"
 #include "objectimpl.h"
 
-typedef struct _FcNSOps *FcNSOps;
-struct _FcNSOps {
-    PetscErrorCode (*destroy)(FcNS *);
-    PetscErrorCode (*setfromoptions)(FcNS, PetscOptionItems *);
-    PetscErrorCode (*setup)(FcNS);
-    PetscErrorCode (*solve)(FcNS);
-};
-
 struct _p_FcNS {
-    /** Object. */
+    /* Object. */
     struct _p_FcObject obj;
-    /** Operations. */
-    struct _FcNSOps ops[1];
-    /** Type-specific data. */
-    void *data;
 
-    /** Mesh. */
+    /* Mesh. */
     FcMesh mesh;
-    /** Solution. */
+    /* Solution. */
     FcSolution sol;
-    /** Material. */
+    /* Material. */
     FcMaterial mat;
-    /** Is set up? */
-    PetscBool setup;
 
-    /** Maximum nuber of iterations in a time step. */
-    PetscInt maxiters;
-
-    /** Current time. */
+    /* Current time. */
     PetscReal t;
-    /** Type step size. */
+    /* Type step size. */
     PetscReal dt;
-    /** Maximum number of time steps. */
+    /* Maximum number of time steps. */
     PetscInt maxsteps;
-};
 
-PetscErrorCode FcNSCreate(FcMesh mesh, FcSolution sol, FcMaterial mat, FcNSType type, FcNSOps ops, void *data,
-                          FcNS *ns);
+    /* KSP for solving the intermediate x-velocity. */
+    KSP kspu;
+    /* KSP for solving the intermediate y-velocity. */
+    KSP kspv;
+    /* KSP for solving the intermediate z-velocity. */
+    KSP kspw;
+    /* KSP for solving the pressure correction. */
+    KSP kspp;
+};
 
 #endif

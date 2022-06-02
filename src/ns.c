@@ -1,43 +1,39 @@
 #include <petscsys.h>
-#include "../inc/ns.h"
 #include "../inc/private/meshimpl.h"
 #include "../inc/private/nsimpl.h"
 #include "../inc/private/solutionimpl.h"
+#include "../inc/private/fsmimpl.h"
 
-PetscErrorCode FcNSCreate(FcMesh mesh, FcSolution sol, FcMaterial mat, FcNSType type, FcNSOps ops, void *data,
-                          FcNS *ns) {
+static PetscErrorCode FcObjectDestroy_NS(FcObject *obj);
+
+PetscErrorCode FcNSCreate(FcMesh mesh, FcSolution sol, FcMaterial mat, FcNS *ns) {
+    FcNS n;
+
     /* Verify the mesh-solution relationship. */
     if (mesh != sol->mesh)
         SETERRQ(mesh->obj.comm, PETSC_ERR_ARG_INCOMP, "Mesh and solution must be associated.");
 
-    /* Allocate memory for the Navier-Stokes solver. */
-    PetscCall(PetscNew(ns));
-    FcObjectInit((FcObject)(*ns), mesh->obj.comm, "FcNS");
-    (*ns)->obj.type = type;
-    (*ns)->ops[0] = *ops;
-    (*ns)->data = data;
+    /* Create the new Navier-Stokes solver. */
+    PetscCall(PetscNew(&n));
 
     /* Initialize. */
-    (*ns)->mesh = mesh;
-    (*ns)->sol = sol;
-    (*ns)->mat = mat;
-    (*ns)->setup = PETSC_FALSE;
-    (*ns)->maxiters = 20;
-    (*ns)->t = 0.0;
-    (*ns)->dt = 1.0e-3;
-    (*ns)->maxsteps = 100;
+    FcObjectInit((FcObject)n, mesh->obj.comm, "FcNS");
+    n->obj.ops.destroy = FcObjectDestroy_NS;
+    PetscCall(FcObjectGetReference((FcObject)mesh, (FcObject *)&n->mesh));
+    PetscCall(FcObjectGetReference((FcObject)sol, (FcObject *)&n->sol));
+    PetscCall(FcObjectGetReference((FcObject)mat, (FcObject *)&n->mat));
+    n->t = 0.0;
+    n->dt = 1.0e-3;
+    n->maxsteps = 0;
+
+    /* Get the reference. */
+    PetscCall(FcObjectGetReference((FcObject)n, (FcObject *)ns));
 
     return 0;
 }
 
 PetscErrorCode FcNSDestroy(FcNS *ns) {
-    PetscCall((*ns)->ops->destroy(ns));
-
-    return 0;
-}
-
-PetscErrorCode FcNSSetMaxIters(FcNS ns, PetscInt maxiters) {
-    ns->maxiters = maxiters;
+    PetscCall(FcObjectRestoreReference((FcObject *)ns));
 
     return 0;
 }
@@ -61,17 +57,12 @@ PetscErrorCode FcNSSetMaxSteps(FcNS ns, PetscInt maxsteps) {
 }
 
 PetscErrorCode FcNSSetFromOptions(FcNS ns) {
-    PetscOptionsBegin(ns->obj.comm, "fc_", "Navier-Stokes solver options.", "FcNS");
+    PetscOptionsBegin(ns->obj.comm, "fc_ns_", "Navier-Stokes solver options.", "FcNS");
 
-    /* Common options. */
-    PetscCall(PetscOptionsInt("-ns_max_iters", "Maximum number of iterations in a time step", "FcNSSetMaxIters",
-                              ns->maxiters, &ns->maxiters, NULL));
-    PetscCall(PetscOptionsReal("-ns_time_step", "Time step size", "FcNSSetTimeStep", ns->dt, &ns->dt, NULL));
-    PetscCall(PetscOptionsInt("-ns_max_steps", "Maximum number of time steps", "FcNSSetMaxSteps", ns->maxsteps,
+    PetscCall(PetscOptionsReal("-time_step", "Time step size", "FcNSSetTimeStep", ns->dt, &ns->dt, NULL));
+    PetscCall(PetscOptionsInt("-max_steps", "Maximum number of time steps", "FcNSSetMaxSteps", ns->maxsteps,
                               &ns->maxsteps, NULL));
-
-    /* Type-specific options. */
-    PetscCall(ns->ops->setfromoptions(ns, PetscOptionsObject));
+    PetscCall(PetscOptionsReal("-time", "Current time", "FcNSSetTime", ns->t, &ns->t, NULL));
 
     PetscOptionsEnd();
 
@@ -79,7 +70,56 @@ PetscErrorCode FcNSSetFromOptions(FcNS ns) {
 }
 
 PetscErrorCode FcNSSetUp(FcNS ns) {
-    PetscCall(ns->ops->setup(ns));
+    PC pc;
+
+    PetscCall(KSPCreate(ns->obj.comm, &ns->kspu));
+    PetscCall(KSPSetDM(ns->kspu, ns->mesh->dau));
+    if (ns->mesh->dim == 2) {
+        PetscCall(KSPSetComputeRHS(ns->kspu, ComputeRHSUstar2d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspu, ComputeOperatorsUVstar2d, ns));
+    } else {
+        PetscCall(KSPSetComputeRHS(ns->kspu, ComputeRHSUstar3d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspu, ComputeOperatorsUVWstar3d, ns));
+    }
+    PetscCall(KSPGetPC(ns->kspu, &pc));
+    PetscCall(PCSetType(pc, PCMG));
+    PetscCall(KSPSetFromOptions(ns->kspu));
+
+    PetscCall(KSPCreate(ns->obj.comm, &ns->kspv));
+    PetscCall(KSPSetDM(ns->kspv, ns->mesh->dav));
+    if (ns->mesh->dim == 2) {
+        PetscCall(KSPSetComputeRHS(ns->kspv, ComputeRHSVstar2d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspv, ComputeOperatorsUVstar2d, ns));
+    } else {
+        PetscCall(KSPSetComputeRHS(ns->kspv, ComputeRHSVstar3d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspv, ComputeOperatorsUVWstar3d, ns));
+    }
+    PetscCall(KSPGetPC(ns->kspv, &pc));
+    PetscCall(PCSetType(pc, PCMG));
+    PetscCall(KSPSetFromOptions(ns->kspv));
+
+    if (ns->mesh->dim == 3) {
+        PetscCall(KSPCreate(ns->obj.comm, &ns->kspw));
+        PetscCall(KSPSetDM(ns->kspw, ns->mesh->daw));
+        PetscCall(KSPSetComputeRHS(ns->kspw, ComputeRHSWstar3d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspw, ComputeOperatorsUVWstar3d, ns));
+        PetscCall(KSPGetPC(ns->kspw, &pc));
+        PetscCall(PCSetType(pc, PCMG));
+        PetscCall(KSPSetFromOptions(ns->kspw));
+    }
+
+    PetscCall(KSPCreate(ns->obj.comm, &ns->kspp));
+    PetscCall(KSPSetDM(ns->kspp, ns->mesh->dap));
+    if (ns->mesh->dim == 2) {
+        PetscCall(KSPSetComputeRHS(ns->kspp, ComputeRHSPprime2d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspp, ComputeOperatorsPprime2d, ns));
+    } else {
+        PetscCall(KSPSetComputeRHS(ns->kspp, ComputeRHSPprime3d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspp, ComputeOperatorsPprime3d, ns));
+    }
+    PetscCall(KSPGetPC(ns->kspp, &pc));
+    PetscCall(PCSetType(pc, PCMG));
+    PetscCall(KSPSetFromOptions(ns->kspp));
 
     return 0;
 }
@@ -91,7 +131,30 @@ PetscErrorCode FcNSGetTime(FcNS ns, PetscReal *t) {
 }
 
 PetscErrorCode FcNSSolve(FcNS ns) {
-    PetscCall(ns->ops->solve(ns));
+    PetscInt i;
+
+    PetscCall(FcNSSetUp(ns));
+
+    for (i = 0; i < ns->maxsteps; i++) {
+        PetscCall(CalculateConvection(ns));
+        PetscCall(CalculateIntermediateVelocity(ns));
+        PetscCall(CalculatePressureCorrection(ns));
+        PetscCall(Update(ns));
+    }
+
+    return 0;
+}
+
+static PetscErrorCode FcObjectDestroy_NS(FcObject *obj) {
+    FcNS ns = (FcNS)(*obj);
+
+    PetscCall(KSPDestroy(&ns->kspu));
+    PetscCall(KSPDestroy(&ns->kspv));
+    if (ns->mesh->dim == 3)
+        PetscCall(KSPDestroy(&ns->kspw));
+    PetscCall(KSPDestroy(&ns->kspp));
+
+    PetscCall(PetscFree(ns));
 
     return 0;
 }

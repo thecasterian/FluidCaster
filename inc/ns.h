@@ -16,12 +16,14 @@
 typedef struct _p_FcNS *FcNS;
 
 /**
- * @brief Type of a Navier-Stokes solver.
+ * @brief Creates a Navier-Stokes solver.
+ *
+ * @param mesh Mesh where the problem is defined.
+ * @param sol Solution of the Navier-Stokes equation.
+ * @param mat Fluid definition.
+ * @param[out] ns Resulting Navier-Stokes solver.
  */
-typedef const char *FcNSType;
-
-/** Fractional step method. */
-#define FC_NS_FSM "FSM"
+PetscErrorCode FcNSCreate(FcMesh mesh, FcSolution sol, FcMaterial mat, FcNS *ns);
 
 /**
  * @brief Destroys a Navier-Stokes solver.
@@ -29,15 +31,6 @@ typedef const char *FcNSType;
  * @param[in] ns Navier-Stokes solver to destroy.
  */
 PetscErrorCode FcNSDestroy(FcNS *ns);
-
-/**
- * @brief Sets the maximum number of iterations in a time step.
- * @note If the solver uses non-iterative time stepping, this function has no effect.
- *
- * @param ns Navier-Stokes solver.
- * @param maxiters Maximum number of iterations.
- */
-PetscErrorCode FcNSSetMaxIters(FcNS ns, PetscInt maxiters);
 
 /**
  * @brief Sets the current time of a solver.
@@ -48,9 +41,7 @@ PetscErrorCode FcNSSetMaxIters(FcNS ns, PetscInt maxiters);
 PetscErrorCode FcNSSetTime(FcNS ns, PetscReal t);
 
 /**
- * @brief Sets the initial time step size.
- * @note If the solver is not transient, this function has no effect. If the solver does not use an adaptive time step
- * size, the initial time step size is used for all time steps.
+ * @brief Sets the time step size.
  *
  * @param ns Navier-Stokes solver.
  * @param timestep Initial time step size.

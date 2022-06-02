@@ -66,7 +66,7 @@ PetscErrorCode FcMeshSetDimension(FcMesh mesh, PetscInt dim) {
 PetscErrorCode FcMeshSetBoundaryType(FcMesh mesh, FcMeshBoundaryType bx, FcMeshBoundaryType by, FcMeshBoundaryType bz) {
     mesh->bx = bx;
     mesh->by = by;
-    mesh->bz = bz;
+    mesh->bz = mesh->dim == 2 ? FC_MESH_BOUNDARY_NONE : bz;
 
     return 0;
 }
@@ -74,7 +74,7 @@ PetscErrorCode FcMeshSetBoundaryType(FcMesh mesh, FcMeshBoundaryType bx, FcMeshB
 PetscErrorCode FcMeshSetSizes(FcMesh mesh, PetscInt mx, PetscInt my, PetscInt mz) {
     mesh->mx = mx;
     mesh->my = my;
-    mesh->mz = mz;
+    mesh->mz = mesh->dim == 2 ? 1 : mz;
 
     return 0;
 }
@@ -94,7 +94,7 @@ PetscErrorCode FcMeshRefine(FcMesh mesh, PetscInt n) {
 PetscErrorCode FcMeshSetNumProcs(FcMesh mesh, PetscInt px, PetscInt py, PetscInt pz) {
     mesh->px = px;
     mesh->py = py;
-    mesh->pz = pz;
+    mesh->pz = mesh->dim == 2 ? PETSC_DECIDE : pz;
 
     return 0;
 }
@@ -102,7 +102,7 @@ PetscErrorCode FcMeshSetNumProcs(FcMesh mesh, PetscInt px, PetscInt py, PetscInt
 PetscErrorCode FcMeshSetOwnershipRanges(FcMesh mesh, const PetscInt lx[], const PetscInt ly[], const PetscInt lz[]) {
     mesh->lx = lx;
     mesh->ly = ly;
-    mesh->lz = lz;
+    mesh->lz = mesh->dim == 2 ? NULL : lz;
 
     return 0;
 }
@@ -139,7 +139,7 @@ PetscErrorCode FcMeshSetFromOptions(FcMesh mesh) {
 
     PetscOptionsEnd();
 
-    FcMeshRefine(mesh, nrefs);
+    PetscCall(FcMeshRefine(mesh, nrefs));
 
     return 0;
 }
@@ -195,7 +195,8 @@ PetscErrorCode FcMeshGetInfo(FcMesh mesh, FcMeshInfo *info) {
 
     PetscCall(ConvertBoundaryTypeFromDMToFcMesh(dmbx, &info->bx));
     PetscCall(ConvertBoundaryTypeFromDMToFcMesh(dmby, &info->by));
-    PetscCall(ConvertBoundaryTypeFromDMToFcMesh(dmbz, &info->bz));
+    if (mesh->dim == 3)
+        PetscCall(ConvertBoundaryTypeFromDMToFcMesh(dmbz, &info->bz));
     info->xs = localinfo.xs;
     info->ys = localinfo.ys;
     info->zs = localinfo.zs;
