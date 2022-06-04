@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
 
     /* Create mesh. */
     PetscCall(FcMeshCreate2d(PETSC_COMM_WORLD, FC_MESH_BOUNDARY_NONE, FC_MESH_BOUNDARY_NONE, 3, 3, PETSC_DECIDE,
-                             PETSC_DECIDE, NULL, NULL, &mesh));
+                             PETSC_DECIDE, NULL, NULL, 0.0, 1.0, 0.0, 1.0, &mesh));
     PetscCall(FcMeshSetFromOptions(mesh));
     PetscCall(FcMeshSetUp(mesh));
 

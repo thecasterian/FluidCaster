@@ -7,7 +7,7 @@
 #include "../inc/private/nsimpl.h"
 #include "../inc/private/solutionimpl.h"
 
-PetscErrorCode CalculateConvection(FcNS ns) {
+PetscErrorCode FSMCalculateConvection2d(FcNS ns) {
     FcMesh mesh = ns->mesh;
     FcSolution sol = ns->sol;
 
@@ -84,7 +84,7 @@ PetscErrorCode CalculateConvection(FcNS ns) {
     return 0;
 }
 
-PetscErrorCode CalculateIntermediateVelocity(FcNS ns) {
+PetscErrorCode FSMCalculateIntermediateVelocity2d(FcNS ns) {
     FcMesh mesh = ns->mesh;
     FcSolution sol = ns->sol;
     FcMaterial mat = ns->mat;
@@ -196,7 +196,7 @@ PetscErrorCode CalculateIntermediateVelocity(FcNS ns) {
     return 0;
 }
 
-PetscErrorCode CalculatePressureCorrection(FcNS ns) {
+PetscErrorCode FSMCalculatePressureCorrection2d(FcNS ns) {
     Vec x;
 
     PetscCall(KSPSolve(ns->kspp, NULL, NULL));
@@ -206,7 +206,7 @@ PetscErrorCode CalculatePressureCorrection(FcNS ns) {
     return 0;
 }
 
-PetscErrorCode Update(FcNS ns) {
+PetscErrorCode FSMUpdate2d(FcNS ns) {
     FcMesh mesh = ns->mesh;
     FcSolution sol = ns->sol;
     FcMaterial mat = ns->mat;
@@ -314,7 +314,7 @@ PetscErrorCode Update(FcNS ns) {
     return 0;
 }
 
-PetscErrorCode ComputeRHSUstar2d(KSP ksp, Vec b, void *ctx) {
+PetscErrorCode FSMComputeRHSUstar2d(KSP ksp, Vec b, void *ctx) {
     FcNS ns = ctx;
     FcMesh mesh = ns->mesh;
     FcSolution sol = ns->sol;
@@ -385,7 +385,7 @@ PetscErrorCode ComputeRHSUstar2d(KSP ksp, Vec b, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeRHSVstar2d(KSP ksp, Vec b, void *ctx) {
+PetscErrorCode FSMComputeRHSVstar2d(KSP ksp, Vec b, void *ctx) {
     FcNS ns = ctx;
     FcMesh mesh = ns->mesh;
     FcSolution sol = ns->sol;
@@ -454,7 +454,7 @@ PetscErrorCode ComputeRHSVstar2d(KSP ksp, Vec b, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeRHSPprime2d(KSP ksp, Vec b, void *ctx) {
+PetscErrorCode FSMComputeRHSPprime2d(KSP ksp, Vec b, void *ctx) {
     FcNS ns = ctx;
     FcMesh mesh = ns->mesh;
     FcSolution sol = ns->sol;
@@ -494,7 +494,7 @@ PetscErrorCode ComputeRHSPprime2d(KSP ksp, Vec b, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeOperatorsUVstar2d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
+PetscErrorCode FSMComputeOperatorsUVstar2d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
     FcNS ns = ctx;
     FcMaterial mat = ns->mat;
 
@@ -561,7 +561,7 @@ PetscErrorCode ComputeOperatorsUVstar2d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeOperatorsPprime2d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
+PetscErrorCode FSMComputeOperatorsPprime2d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
     DM da;
     DMDALocalInfo info;
     PetscReal hx, hy;
@@ -630,27 +630,27 @@ PetscErrorCode ComputeOperatorsPprime2d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeRHSUstar3d(KSP ksp, Vec b, void *ctx) {
+PetscErrorCode FSMComputeRHSUstar3d(KSP ksp, Vec b, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeRHSVstar3d(KSP ksp, Vec b, void *ctx) {
+PetscErrorCode FSMComputeRHSVstar3d(KSP ksp, Vec b, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeRHSWstar3d(KSP ksp, Vec b, void *ctx) {
+PetscErrorCode FSMComputeRHSWstar3d(KSP ksp, Vec b, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeRHSPprime3d(KSP ksp, Vec b, void *ctx) {
+PetscErrorCode FSMComputeRHSPprime3d(KSP ksp, Vec b, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeOperatorsUVWstar3d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
+PetscErrorCode FSMComputeOperatorsUVWstar3d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
     return 0;
 }
 
-PetscErrorCode ComputeOperatorsPprime3d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
+PetscErrorCode FSMComputeOperatorsPprime3d(KSP ksp, Mat J, Mat Jpre, void *ctx) {
     return 0;
 }
 

@@ -75,11 +75,11 @@ PetscErrorCode FcNSSetUp(FcNS ns) {
     PetscCall(KSPCreate(ns->obj.comm, &ns->kspu));
     PetscCall(KSPSetDM(ns->kspu, ns->mesh->dau));
     if (ns->mesh->dim == 2) {
-        PetscCall(KSPSetComputeRHS(ns->kspu, ComputeRHSUstar2d, ns));
-        PetscCall(KSPSetComputeOperators(ns->kspu, ComputeOperatorsUVstar2d, ns));
+        PetscCall(KSPSetComputeRHS(ns->kspu, FSMComputeRHSUstar2d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspu, FSMComputeOperatorsUVstar2d, ns));
     } else {
-        PetscCall(KSPSetComputeRHS(ns->kspu, ComputeRHSUstar3d, ns));
-        PetscCall(KSPSetComputeOperators(ns->kspu, ComputeOperatorsUVWstar3d, ns));
+        PetscCall(KSPSetComputeRHS(ns->kspu, FSMComputeRHSUstar3d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspu, FSMComputeOperatorsUVWstar3d, ns));
     }
     PetscCall(KSPGetPC(ns->kspu, &pc));
     PetscCall(PCSetType(pc, PCMG));
@@ -88,11 +88,11 @@ PetscErrorCode FcNSSetUp(FcNS ns) {
     PetscCall(KSPCreate(ns->obj.comm, &ns->kspv));
     PetscCall(KSPSetDM(ns->kspv, ns->mesh->dav));
     if (ns->mesh->dim == 2) {
-        PetscCall(KSPSetComputeRHS(ns->kspv, ComputeRHSVstar2d, ns));
-        PetscCall(KSPSetComputeOperators(ns->kspv, ComputeOperatorsUVstar2d, ns));
+        PetscCall(KSPSetComputeRHS(ns->kspv, FSMComputeRHSVstar2d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspv, FSMComputeOperatorsUVstar2d, ns));
     } else {
-        PetscCall(KSPSetComputeRHS(ns->kspv, ComputeRHSVstar3d, ns));
-        PetscCall(KSPSetComputeOperators(ns->kspv, ComputeOperatorsUVWstar3d, ns));
+        PetscCall(KSPSetComputeRHS(ns->kspv, FSMComputeRHSVstar3d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspv, FSMComputeOperatorsUVWstar3d, ns));
     }
     PetscCall(KSPGetPC(ns->kspv, &pc));
     PetscCall(PCSetType(pc, PCMG));
@@ -101,8 +101,8 @@ PetscErrorCode FcNSSetUp(FcNS ns) {
     if (ns->mesh->dim == 3) {
         PetscCall(KSPCreate(ns->obj.comm, &ns->kspw));
         PetscCall(KSPSetDM(ns->kspw, ns->mesh->daw));
-        PetscCall(KSPSetComputeRHS(ns->kspw, ComputeRHSWstar3d, ns));
-        PetscCall(KSPSetComputeOperators(ns->kspw, ComputeOperatorsUVWstar3d, ns));
+        PetscCall(KSPSetComputeRHS(ns->kspw, FSMComputeRHSWstar3d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspw, FSMComputeOperatorsUVWstar3d, ns));
         PetscCall(KSPGetPC(ns->kspw, &pc));
         PetscCall(PCSetType(pc, PCMG));
         PetscCall(KSPSetFromOptions(ns->kspw));
@@ -111,11 +111,11 @@ PetscErrorCode FcNSSetUp(FcNS ns) {
     PetscCall(KSPCreate(ns->obj.comm, &ns->kspp));
     PetscCall(KSPSetDM(ns->kspp, ns->mesh->dap));
     if (ns->mesh->dim == 2) {
-        PetscCall(KSPSetComputeRHS(ns->kspp, ComputeRHSPprime2d, ns));
-        PetscCall(KSPSetComputeOperators(ns->kspp, ComputeOperatorsPprime2d, ns));
+        PetscCall(KSPSetComputeRHS(ns->kspp, FSMComputeRHSPprime2d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspp, FSMComputeOperatorsPprime2d, ns));
     } else {
-        PetscCall(KSPSetComputeRHS(ns->kspp, ComputeRHSPprime3d, ns));
-        PetscCall(KSPSetComputeOperators(ns->kspp, ComputeOperatorsPprime3d, ns));
+        PetscCall(KSPSetComputeRHS(ns->kspp, FSMComputeRHSPprime3d, ns));
+        PetscCall(KSPSetComputeOperators(ns->kspp, FSMComputeOperatorsPprime3d, ns));
     }
     PetscCall(KSPGetPC(ns->kspp, &pc));
     PetscCall(PCSetType(pc, PCMG));
@@ -136,10 +136,10 @@ PetscErrorCode FcNSSolve(FcNS ns) {
     PetscCall(FcNSSetUp(ns));
 
     for (i = 0; i < ns->maxsteps; i++) {
-        PetscCall(CalculateConvection(ns));
-        PetscCall(CalculateIntermediateVelocity(ns));
-        PetscCall(CalculatePressureCorrection(ns));
-        PetscCall(Update(ns));
+        PetscCall(FSMCalculateConvection2d(ns));
+        PetscCall(FSMCalculateIntermediateVelocity2d(ns));
+        PetscCall(FSMCalculatePressureCorrection2d(ns));
+        PetscCall(FSMUpdate2d(ns));
     }
 
     return 0;

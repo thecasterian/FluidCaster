@@ -63,8 +63,18 @@ typedef struct {
     PetscInt py;
     /** Number of processes in the z-direction. */
     PetscInt pz;
-    /** Mesh. */
-    FcMesh mesh;
+    /** Lower bound of the domain in the x-direction. */
+    PetscReal xmin;
+    /** Upper bound of the domain in the x-direction. */
+    PetscReal xmax;
+    /** Lower bound of the domain in the y-direction. */
+    PetscReal ymin;
+    /** Upper bound of the domain in the y-direction. */
+    PetscReal ymax;
+    /** Lower bound of the domain in the z-direction. */
+    PetscReal zmin;
+    /** Upper bound of the domain in the z-direction. */
+    PetscReal zmax;
 } FcMeshInfo;
 
 /**
@@ -81,10 +91,15 @@ typedef struct {
  * the array must be of length as @p px, which cannot be PETSC_DECIDE, and the sum of the entries must be @p mx.
  * @param[in] ly Array containing the number of elements in each process along the y-direction, or NULL. If not NULL,
  * the array must be of length as @p py, which cannot be PETSC_DECIDE, and the sum of the entries must be @p my.
+ * @param xmin Lower bound of the domain in the x-direction.
+ * @param xmax Upper bound of the domain in the x-direction.
+ * @param ymin Lower bound of the domain in the y-direction.
+ * @param ymax Upper bound of the domain in the y-direction.
  * @param[out] mesh Resulting mesh.
  */
 PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBoundaryType by, PetscInt mx, PetscInt my,
-                              PetscInt px, PetscInt py, const PetscInt lx[], const PetscInt ly[], FcMesh *mesh);
+                              PetscInt px, PetscInt py, const PetscInt lx[], const PetscInt ly[], PetscReal xmin,
+                              PetscReal xmax, PetscReal ymin, PetscReal ymax, FcMesh *mesh);
 
 /**
  * @brief Creates a mesh.
@@ -105,11 +120,19 @@ PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBounda
  * the array must be of length as @p py, which cannot be PETSC_DECIDE, and the sum of the entries must be @p my.
  * @param[in] lz Array containing the number of elements in each process along the z-direction, or NULL. If not NULL,
  * the array must be of length as @p pz, which cannot be PETSC_DECIDE, and the sum of the entries must be @p mz.
+ * @param xmin Lower bound of the domain in the x-direction.
+ * @param xmax Upper bound of the domain in the x-direction.
+ * @param ymin Lower bound of the domain in the y-direction.
+ * @param ymax Upper bound of the domain in the y-direction.
+ * @param zmin Lower bound of the domain in the z-direction.
+ * @param zmax Upper bound of the domain in the z-direction.
  * @param[out] mesh Resulting mesh.
  */
 PetscErrorCode FcMeshCreate3d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBoundaryType by, FcMeshBoundaryType bz,
                               PetscInt mx, PetscInt my, PetscInt mz, PetscInt px, PetscInt py, PetscInt pz,
-                              const PetscInt lx[], const PetscInt ly[], const PetscInt lz[], FcMesh *mesh);
+                              const PetscInt lx[], const PetscInt ly[], const PetscInt lz[], PetscReal xmin,
+                              PetscReal xmax, PetscReal ymin, PetscReal ymax, PetscReal zmin, PetscReal zmax,
+                              FcMesh *mesh);
 
 /**
  * @brief Sets the dimension.
@@ -169,6 +192,20 @@ PetscErrorCode FcMeshSetNumProcs(FcMesh mesh, PetscInt px, PetscInt py, PetscInt
  * @note These correspond to the arguments passed to FcMeshCreate2d() and FcMeshCreate3d().
  */
 PetscErrorCode FcMeshSetOwnershipRanges(FcMesh mesh, const PetscInt lx[], const PetscInt ly[], const PetscInt lz[]);
+
+/**
+ * @brief Sets the domain bounds.
+ *
+ * @param mesh Mesh.
+ * @param xmin Lower bound of the domain in the x-direction.
+ * @param xmax Upper bound of the domain in the x-direction.
+ * @param ymin Lower bound of the domain in the y-direction.
+ * @param ymax Upper bound of the domain in the y-direction.
+ * @param zmin Lower bound of the domain in the z-direction. Ignored for a 2D mesh.
+ * @param zmax Upper bound of the domain in the z-direction. Ignored for a 2D mesh.
+ */
+PetscErrorCode FcMeshSetDomainBounds(FcMesh mesh, PetscReal xmin, PetscReal xmax, PetscReal ymin, PetscReal ymax,
+                                     PetscReal zmin, PetscReal zmax);
 
 /**
  * @brief Sets parameters in a mesh from the options database.

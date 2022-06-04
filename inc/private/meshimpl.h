@@ -18,6 +18,12 @@ struct _p_FcMesh {
     PetscInt px, py, pz;
     /* Array containing the number of elements in each process */
     const PetscInt *lx, *ly, *lz;
+    /* Domain range. */
+    PetscReal xmin, xmax, ymin, ymax, zmin, zmax;
+    /* Coordinate of element faces. */
+    PetscReal *xf, *yf, *zf;
+    /* Coordinate of element centers. */
+    PetscReal *xc, *yc, *zc;
     /* DMDA. */
     DM da;
     /* DMDA used by linear solvers. */
