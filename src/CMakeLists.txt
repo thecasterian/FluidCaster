@@ -4,7 +4,7 @@ include(../option.cmake)
 
 set(TARGET ${LIBRARY_NAME})
 include(srclist.cmake)
-set(LIBS petsc hdf5 cgns)
+set(LIBS m petsc hdf5 cgns)
 
 add_library(${TARGET} SHARED ${SRCS})
 target_link_libraries(${TARGET} PUBLIC ${LIBS})

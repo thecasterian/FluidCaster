@@ -58,7 +58,7 @@ static PetscErrorCode FcViewerViewMesh_PCGNS(FcViewer viewer, FcMesh mesh) {
     VIEWER_PCGNS *pcgns = viewer->data;
     FcMeshInfo info;
     cgsize_t zonesize[9] = {0}, rmin[3] = {0}, rmax[3] = {0};
-    double *x, *y, *z, hx, hy, hz;
+    double *x, *y, *z;
     int Cx, Cy, Cz;
     cgsize_t i, j, k;
     PetscInt cnt;
@@ -107,29 +107,24 @@ static PetscErrorCode FcViewerViewMesh_PCGNS(FcViewer viewer, FcMesh mesh) {
     if (mesh->dim == 2) {
         PetscCall(PetscCalloc1((rmax[0] - rmin[0] + 1) * (rmax[1] - rmin[1] + 1), &x));
         PetscCall(PetscCalloc1((rmax[0] - rmin[0] + 1) * (rmax[1] - rmin[1] + 1), &y));
-        hx = 1.0 / info.mx;
-        hy = 1.0 / info.my;
         cnt = 0;
         for (j = rmin[1]; j <= rmax[1]; j++)
             for (i = rmin[0]; i <= rmax[0]; i++) {
-                x[cnt] = (i - 1) * hx;
-                y[cnt] = (j - 1) * hy;
+                x[cnt] = mesh->xf[i - 1];
+                y[cnt] = mesh->yf[j - 1];
                 cnt++;
             }
     } else {
         PetscCall(PetscCalloc1((rmax[0] - rmin[0] + 1) * (rmax[1] - rmin[1] + 1) * (rmax[2] - rmin[2] + 1), &x));
         PetscCall(PetscCalloc1((rmax[0] - rmin[0] + 1) * (rmax[1] - rmin[1] + 1) * (rmax[2] - rmin[2] + 1), &y));
         PetscCall(PetscCalloc1((rmax[0] - rmin[0] + 1) * (rmax[1] - rmin[1] + 1) * (rmax[2] - rmin[2] + 1), &z));
-        hx = 1.0 / info.mx;
-        hy = 1.0 / info.my;
-        hz = 1.0 / info.mz;
         cnt = 0;
         for (k = rmin[2]; k <= rmax[2]; k++)
             for (j = rmin[1]; j <= rmax[1]; j++)
                 for (i = rmin[0]; i <= rmax[0]; i++) {
-                    x[cnt] = (i - 1) * hx;
-                    y[cnt] = (j - 1) * hy;
-                    z[cnt] = (k - 1) * hz;
+                    x[cnt] = mesh->xf[i - 1];
+                    y[cnt] = mesh->yf[j - 1];
+                    z[cnt] = mesh->zf[k - 1];
                     cnt++;
                 }
     }

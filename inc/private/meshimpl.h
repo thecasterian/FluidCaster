@@ -24,6 +24,18 @@ struct _p_FcMesh {
     PetscReal *xf, *yf, *zf;
     /* Coordinate of element centers. */
     PetscReal *xc, *yc, *zc;
+    /* dxi/dx */
+    PetscReal *dxf, *dxc;
+    /* dyi/dy */
+    PetscReal *dyf, *dyc;
+    /* dzi/dz */
+    PetscReal *dzf, *dzc;
+    /* d2xi/dx2 */
+    PetscReal *dx2f, *dx2c;
+    /* d2yi/dy2 */
+    PetscReal *dy2f, *dy2c;
+    /* d2zi/dz2 */
+    PetscReal *dz2f, *dz2c;
     /* DMDA. */
     DM da;
     /* DMDA used by linear solvers. */

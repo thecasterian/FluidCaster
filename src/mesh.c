@@ -7,6 +7,7 @@ static const char *BoundaryTypes[] = {"none", "periodic", "FcMeshBoundaryType", 
 
 static PetscErrorCode FcObjectDestroy_Mesh(FcObject *obj);
 static PetscErrorCode ConvertBoundaryTypeFromFcMeshToDM(FcMeshBoundaryType fcb, DMBoundaryType *dmb);
+static PetscErrorCode SetCoordinates(FcMesh mesh);
 
 PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBoundaryType by, PetscInt mx, PetscInt my,
                               PetscInt px, PetscInt py, const PetscInt lx[], const PetscInt ly[], PetscReal xmin,
@@ -25,8 +26,9 @@ PetscErrorCode FcMeshCreate2d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBounda
     PetscCall(FcMeshSetNumProcs(m, px, py, PETSC_DECIDE));
     PetscCall(FcMeshSetOwnershipRanges(m, lx, ly, NULL));
     PetscCall(FcMeshSetDomainBounds(m, xmin, xmax, ymin, ymax, 0.0, 1.0));
-    m->xf = m->yf = m->zf = NULL;
-    m->xc = m->yc = m->zc = NULL;
+    m->xf = m->yf = m->zf = m->xc = m->yc = m->zc = NULL;
+    m->dxf = m->dyf = m->dzf = m->dxc = m->dyc = m->dzc = NULL;
+    m->dx2f = m->dy2f = m->dz2f = m->dx2c = m->dy2c = m->dz2c = NULL;
     m->da = NULL;
     m->dau = m->dav = m->daw = m->dap = NULL;
     m->stag = NULL;
@@ -56,8 +58,9 @@ PetscErrorCode FcMeshCreate3d(MPI_Comm comm, FcMeshBoundaryType bx, FcMeshBounda
     PetscCall(FcMeshSetNumProcs(m, px, py, pz));
     PetscCall(FcMeshSetOwnershipRanges(m, lx, ly, lz));
     PetscCall(FcMeshSetDomainBounds(m, xmin, xmax, ymin, ymax, zmin, zmax));
-    m->xf = m->yf = m->zf = NULL;
-    m->xc = m->yc = m->zc = NULL;
+    m->xf = m->yf = m->zf = m->xc = m->yc = m->zc = NULL;
+    m->dxf = m->dyf = m->dzf = m->dxc = m->dyc = m->dzc = NULL;
+    m->dx2f = m->dy2f = m->dz2f = m->dx2c = m->dy2c = m->dz2c = NULL;
     m->da = NULL;
     m->dau = m->dav = m->daw = m->dap = NULL;
     m->stag = NULL;
@@ -182,8 +185,7 @@ PetscErrorCode FcMeshSetFromOptions(FcMesh mesh) {
 }
 
 PetscErrorCode FcMeshSetUp(FcMesh mesh) {
-    DMBoundaryType bx, by, bz;
-    PetscInt i, j, k;
+    DMBoundaryType bx = DM_BOUNDARY_NONE, by = DM_BOUNDARY_NONE, bz = DM_BOUNDARY_NONE;
 
     PetscCall(ConvertBoundaryTypeFromFcMeshToDM(mesh->bx, &bx));
     PetscCall(ConvertBoundaryTypeFromFcMeshToDM(mesh->by, &by));
@@ -215,22 +217,7 @@ PetscErrorCode FcMeshSetUp(FcMesh mesh) {
     PetscCall(DMSetUp(mesh->stag));
 
     /* Set coordinates. */
-    PetscCall(PetscCalloc4(mesh->mx + 1, &mesh->xf, mesh->my + 1, &mesh->yf, mesh->mx, &mesh->xc, mesh->my, &mesh->yc));
-    for (i = 0; i <= mesh->mx; i++)
-        mesh->xf[i] = 1.0 / mesh->mx * i;
-    for (i = 0; i < mesh->mx; i++)
-        mesh->xc[i] = (mesh->xf[i] + mesh->xf[i + 1]) / 2.0;
-    for (j = 0; j <= mesh->my; j++)
-        mesh->yf[j] = 1.0 / mesh->my * j;
-    for (j = 0; j < mesh->my; j++)
-        mesh->yc[j] = (mesh->yf[j] + mesh->yf[j + 1]) / 2.0;
-    if (mesh->dim == 3) {
-        PetscCall(PetscCalloc2(mesh->mz + 1, &mesh->zf, mesh->mz, &mesh->zc));
-        for (k = 0; k <= mesh->mz; k++)
-            mesh->zf[k] = 1.0 / mesh->mz * k;
-        for (k = 0; k < mesh->mz; k++)
-            mesh->zc[k] = (mesh->zf[k] + mesh->zf[k + 1]) / 2.0;
-    }
+    PetscCall(SetCoordinates(mesh));
 
     return 0;
 }
@@ -293,8 +280,10 @@ static PetscErrorCode FcObjectDestroy_Mesh(FcObject *obj) {
     PetscCall(DMDestroy(&mesh->da));
     PetscCall(DMDestroy(&mesh->stag));
 
-    /* Free coordinates. */
+    /* Free coordinates and their derivatives. */
     PetscCall(PetscFree6(mesh->xf, mesh->yf, mesh->zf, mesh->xc, mesh->yc, mesh->zc));
+    PetscCall(PetscFree6(mesh->dxf, mesh->dyf, mesh->dzf, mesh->dxc, mesh->dyc, mesh->dzc));
+    PetscCall(PetscFree6(mesh->dx2f, mesh->dy2f, mesh->dz2f, mesh->dx2c, mesh->dy2c, mesh->dz2c));
 
     /* Free memory. */
     PetscCall(PetscFree(mesh));
@@ -311,7 +300,101 @@ static PetscErrorCode ConvertBoundaryTypeFromFcMeshToDM(FcMeshBoundaryType fcb, 
             *dmb = DM_BOUNDARY_PERIODIC;
             break;
         default:
-            return PETSC_ERR_SUP;
+            SETERRQ(PETSC_COMM_WORLD, PETSC_ERR_SUP, "invalid boundary type");
+    }
+
+    return 0;
+}
+
+static PetscErrorCode SetCoordinates(FcMesh mesh) {
+    PetscReal hxi, heta, hzeta;
+    PetscReal xp, xl, xr, yp, yd, yu, zp, zb, zf;
+    PetscReal dxi, deta, dzeta, dxi2, deta2, dzeta2;
+    PetscInt i, j, k;
+
+    /* Calculate coordinates. */
+    PetscCall(PetscCalloc4(mesh->mx + 1, &mesh->xf, mesh->my + 1, &mesh->yf, mesh->mx, &mesh->xc, mesh->my, &mesh->yc));
+    for (i = 0; i <= mesh->mx; i++)
+        mesh->xf[i] = mesh->xmin + (mesh->xmax - mesh->xmin) / mesh->mx * i;
+    for (i = 0; i < mesh->mx; i++)
+        mesh->xc[i] = (mesh->xf[i] + mesh->xf[i + 1]) / 2.0;
+    for (j = 0; j <= mesh->my; j++)
+        mesh->yf[j] = mesh->ymin + (mesh->ymax - mesh->ymin) / mesh->my * j;
+    for (j = 0; j < mesh->my; j++)
+        mesh->yc[j] = (mesh->yf[j] + mesh->yf[j + 1]) / 2.0;
+    if (mesh->dim == 3) {
+        PetscCall(PetscCalloc2(mesh->mz + 1, &mesh->zf, mesh->mz, &mesh->zc));
+        for (k = 0; k <= mesh->mz; k++)
+            mesh->zf[k] = mesh->zmin + (mesh->zmax - mesh->zmin) / mesh->mz * k;
+        for (k = 0; k < mesh->mz; k++)
+            mesh->zc[k] = (mesh->zf[k] + mesh->zf[k + 1]) / 2.0;
+    }
+
+    /* Calculate derivatives. */
+    PetscCall(PetscCalloc4(mesh->mx + 1, &mesh->dxf, mesh->my + 1, &mesh->dyf, mesh->mx, &mesh->dxc, mesh->my,
+                           &mesh->dyc));
+    PetscCall(PetscCalloc4(mesh->mx + 1, &mesh->dx2f, mesh->my + 1, &mesh->dy2f, mesh->mx, &mesh->dx2c, mesh->my,
+                           &mesh->dy2c));
+    hxi = 1.0 / mesh->mx;
+    heta = 1.0 / mesh->my;
+    for (i = 0; i <= mesh->mx; i++) {
+        xp = mesh->xf[i];
+        xl = i == 0 ? 2.0 * mesh->xmin - mesh->xf[1] : mesh->xf[i - 1];
+        xr = i == mesh->mx ? 2.0 * mesh->xmax - mesh->xf[mesh->mx - 1] : mesh->xf[i + 1];
+        dxi = (xr - xl) / (2.0 * hxi);
+        dxi2 = (xr - 2.0 * xp + xl) / (hxi * hxi);
+        mesh->dxf[i] = 1.0 / dxi;
+        mesh->dx2f[i] = -dxi2 / (dxi * dxi * dxi);
+    }
+    for (i = 0; i < mesh->mx; i++) {
+        xp = mesh->xc[i];
+        xl = i == 0 ? 2.0 * mesh->xmin - mesh->xc[0] : mesh->xc[i - 1];
+        xr = i == mesh->mx - 1 ? 2.0 * mesh->xmax - mesh->xc[mesh->mx - 1] : mesh->xc[i + 1];
+        dxi = (xr - xl) / (2.0 * hxi);
+        dxi2 = (xr - 2.0 * xp + xl) / (hxi * hxi);
+        mesh->dxc[i] = 1.0 / dxi;
+        mesh->dx2c[i] = -dxi2 / (dxi * dxi * dxi);
+    }
+    for (j = 0; j <= mesh->my; j++) {
+        yp = mesh->yf[j];
+        yd = j == 0 ? 2.0 * mesh->ymin - mesh->yf[1] : mesh->yf[j - 1];
+        yu = j == mesh->my ? 2.0 * mesh->ymax - mesh->yf[mesh->my - 1] : mesh->yf[j + 1];
+        deta = (yu - yd) / (2.0 * heta);
+        deta2 = (yu - 2.0 * yp + yd) / (heta * heta);
+        mesh->dyf[j] = 1.0 / deta;
+        mesh->dy2f[j] = -deta2 / (deta * deta * deta);
+    }
+    for (j = 0; j < mesh->my; j++) {
+        yp = mesh->yc[j];
+        yd = j == 0 ? 2.0 * mesh->ymin - mesh->yc[0] : mesh->yc[j - 1];
+        yu = j == mesh->my - 1 ? 2.0 * mesh->ymax - mesh->yc[mesh->my - 1] : mesh->yc[j + 1];
+        deta = (yu - yd) / (2.0 * heta);
+        deta2 = (yu - 2.0 * yp + yd) / (heta * heta);
+        mesh->dyc[j] = 1.0 / deta;
+        mesh->dy2c[j] = -deta2 / (deta * deta * deta);
+    }
+    if (mesh->dim == 3) {
+        PetscCall(PetscCalloc4(mesh->mz + 1, &mesh->dzf, mesh->mz, &mesh->dzc, mesh->mz, &mesh->dz2f, mesh->mz,
+                               &mesh->dz2c));
+        hzeta = 1.0 / mesh->mz;
+        for (k = 0; k <= mesh->mz; k++) {
+            zp = mesh->zf[k];
+            zb = k == 0 ? 2.0 * mesh->zmin - mesh->zf[1] : mesh->zf[k - 1];
+            zf = k == mesh->mz ? 2.0 * mesh->zmax - mesh->zf[mesh->mz - 1] : mesh->zf[k + 1];
+            dzeta = (zf - zb) / (2.0 * hzeta);
+            dzeta2 = (zf - 2.0 * zp + zb) / (hzeta * hzeta);
+            mesh->dzf[k] = 1.0 / dzeta;
+            mesh->dz2f[k] = -dzeta2 / (dzeta * dzeta * dzeta);
+        }
+        for (k = 0; k < mesh->mz; k++) {
+            zp = mesh->zc[k];
+            zb = k == 0 ? 2.0 * mesh->zmin - mesh->zc[0] : mesh->zc[k - 1];
+            zf = k == mesh->mz - 1 ? 2.0 * mesh->zmax - mesh->zc[mesh->mz - 1] : mesh->zc[k + 1];
+            dzeta = (zf - zb) / (2.0 * hzeta);
+            dzeta2 = (zf - 2.0 * zp + zb) / (hzeta * hzeta);
+            mesh->dzc[k] = 1.0 / dzeta;
+            mesh->dz2c[k] = -dzeta2 / (dzeta * dzeta * dzeta);
+        }
     }
 
     return 0;
